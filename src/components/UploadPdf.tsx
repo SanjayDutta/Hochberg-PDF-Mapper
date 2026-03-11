@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
+import { PDFContainer } from "./PDFContainer";
 
 const MAX_SIZE_BYTES = 5 * 1024 * 1024;
 
@@ -8,6 +9,7 @@ export function UploadPdf() {
   const [file, setFile] = useState<File | null>(null);
   const [status, setStatus] = useState<null | { ok: boolean; message: string }>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [isLoadingPdf, setIsLoadingPdf] = useState(false);
 
   const validateAndStore = useCallback((selectedFile: File | null) => {
     if (!selectedFile) {
@@ -36,6 +38,7 @@ export function UploadPdf() {
       ok: true,
       message: `File upload success. Size: ${sizeInMb} MB.`,
     });
+    setIsLoadingPdf(true);
   }, []);
 
   const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -110,6 +113,24 @@ export function UploadPdf() {
           >
             {status.message}
           </p>
+        )}
+
+        {file && isLoadingPdf && (
+          <div className="mt-4 flex justify-center">
+            <div
+              className="spinner-border animate-spin inline-block w-8 h-8 border-4 rounded-full border-slate-300 border-t-blue-600"
+              role="status"
+            >
+              <span className="sr-only">Loading...</span>
+            </div>
+          </div>
+        )}
+
+        {file && (
+          <PDFContainer
+            file={file}
+            onLoadComplete={() => setIsLoadingPdf(false)}
+          />
         )}
       </div>
     </div>

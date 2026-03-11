@@ -10,6 +10,7 @@ export function UploadPdf() {
   const [status, setStatus] = useState<null | { ok: boolean; message: string }>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [isLoadingPdf, setIsLoadingPdf] = useState(false);
+  const [isPdfReady, setIsPdfReady] = useState(false);
 
   const validateAndStore = useCallback((selectedFile: File | null) => {
     if (!selectedFile) {
@@ -33,12 +34,12 @@ export function UploadPdf() {
     }
 
     setFile(selectedFile);
-    const sizeInMb = (selectedFile.size / (1024 * 1024)).toFixed(2);
+    setIsPdfReady(false);
+    setIsLoadingPdf(true);
     setStatus({
       ok: true,
-      message: `File upload success. Size: ${sizeInMb} MB.`,
+      message: `File upload success. Size: ${(selectedFile.size / (1024 * 1024)).toFixed(2)} MB.`,
     });
-    setIsLoadingPdf(true);
   }, []);
 
   const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -63,6 +64,40 @@ export function UploadPdf() {
     validateAndStore(droppedFile);
   };
 
+  // Phase 3: PDF is ready — show only PDFContainer, upload UI is gone
+  if (isPdfReady && file) {
+    return (
+      <div className="h-screen overflow-hidden bg-slate-50 flex flex-col p-6">
+        <PDFContainer file={file} />
+      </div>
+    );
+  }
+
+  // Phase 2: Loading screen — PDFContainer mounts hidden to trigger load
+  if (isLoadingPdf && file) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-slate-50">
+        <div
+          className="animate-spin inline-block w-12 h-12 border-4 rounded-full border-slate-300 border-t-blue-600"
+          role="status"
+        >
+          <span className="sr-only">Loading...</span>
+        </div>
+        <p className="text-slate-600 text-sm">Reading <span className="font-medium">{file.name}</span>...</p>
+        <div className="hidden">
+          <PDFContainer
+            file={file}
+            onLoadComplete={() => {
+              setIsLoadingPdf(false);
+              setIsPdfReady(true);
+            }}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  // Phase 1: Upload form
   return (
     <div className="flex min-h-screen items-center justify-center bg-slate-50">
       <div className="w-full max-w-md rounded-xl border border-dashed border-slate-300 bg-white p-6 shadow-sm">
@@ -99,12 +134,6 @@ export function UploadPdf() {
           onChange={handleInputChange}
         />
 
-        {file && (
-          <p className="mb-2 text-xs text-slate-600">
-            Selected file: <span className="font-medium">{file.name}</span>
-          </p>
-        )}
-
         {status && (
           <p
             className={`mt-2 text-sm ${
@@ -114,26 +143,7 @@ export function UploadPdf() {
             {status.message}
           </p>
         )}
-
-        {file && isLoadingPdf && (
-          <div className="mt-4 flex justify-center">
-            <div
-              className="spinner-border animate-spin inline-block w-8 h-8 border-4 rounded-full border-slate-300 border-t-blue-600"
-              role="status"
-            >
-              <span className="sr-only">Loading...</span>
-            </div>
-          </div>
-        )}
-
-        {file && (
-          <PDFContainer
-            file={file}
-            onLoadComplete={() => setIsLoadingPdf(false)}
-          />
-        )}
       </div>
     </div>
   );
 }
-

@@ -22,4 +22,24 @@ When prompting, instruction will be given in order to know which task is being f
 
 **2. Step File to Refer:** step1.md
 
+**3. Status** - Complete
+
+------------------------------------------------
+
+## Step 2 : Bare-bones Project Setup - 2nd part
+
+**1.Aim:** We have a web browser accessible project. Now we will work on rendering the pdf pages.
+
+**2. Step File to Refer:** step2.md
+
+**3. Status** - Incomplete
+
+------------------------------------------------
+
+## Step 3 : 
+
+**1.Aim:** 
+
+**2. Step File to Refer:** 
+
 **3. Status** - Incomplete

@@ -83,7 +83,7 @@ export function UploadPdf() {
         >
           <span className="sr-only">Loading...</span>
         </div>
-        <p className="text-slate-600 text-sm">Reading <span className="font-medium">{file.name}</span>...</p>
+        <p className="text-slate-900 text-sm">Reading <span className="font-medium">{file.name}</span>...</p>
         <div className="hidden">
           <PDFContainer
             file={file}
@@ -101,7 +101,7 @@ export function UploadPdf() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-slate-50">
       <div className="w-full max-w-md rounded-xl border border-dashed border-slate-300 bg-white p-6 shadow-sm">
-        <h1 className="mb-4 text-center text-2xl font-semibold text-slate-800">
+        <h1 className="mb-4 text-center text-2xl font-semibold text-slate-950">
           Upload PDF
         </h1>
         <div
@@ -120,11 +120,11 @@ export function UploadPdf() {
             }
           }}
         >
-          <p className="mb-1 text-sm font-medium text-slate-700">
+          <p className="mb-1 text-sm font-medium text-slate-900">
             Drag & drop a PDF here
           </p>
-          <p className="mb-2 text-xs text-slate-500">or click to select a file</p>
-          <p className="text-xs text-slate-400">Max size: 5MB</p>
+          <p className="mb-2 text-xs text-slate-950">or click to select a file</p>
+          <p className="text-xs text-slate-900">Max size: 5MB</p>
         </div>
         <input
           id="pdf-file-input"

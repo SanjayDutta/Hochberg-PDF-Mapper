@@ -1,4 +1,4 @@
-## Step 3 :  Variables in PDF- 1st Part
+## Step 3 :  Add variables in PDF- 1st Part
 
 **1.Aim:** This project is a PDF Varaible Mapper. So we shall be placing variables on top of the document, in a step by step manner, and export a JOSN schema desceriving the variable and its placements
 
@@ -14,3 +14,5 @@
 - [x] After insertion of the field and adding the information in popup, the field should sizeable. That is user can move this component left/right/up/down to set the size of this field in the pdf page. The fields highet and width value goes into the fields {height,width } value
 
 - [x] We shall also given an option to delete the field. Add a small cross icon in the field, which are inserted in the page canvas. On clicking this, the field gets removed.
+
+- [x] add some more fields, like checkbox and dropdown

@@ -38,8 +38,19 @@ When prompting, instruction will be given in order to know which task is being f
 
 ## Step 3 : 
 
-**1.Aim:** 
+**1.Aim:** Adding Variables in PDF- 1st Part
 
-**2. Step File to Refer:** 
+**2. Step File to Refer:** step3.md
+
+**3. Status** - Complete
+
+------------------------------------------------
+
+## Step 4 : 
+
+**1.Aim:** Adding Variables in PDF- 2nd Part
+
+**2. Step File to Refer:** step4.md
 
 **3. Status** - Incomplete
+

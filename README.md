@@ -108,7 +108,18 @@ For the full directory layout, see [workflow/hierarchy.md](workflow/hierarchy.md
 
 ## AI Workflow Explanation
 
-This project was built incrementally using an AI-assisted development workflow. Each development phase was defined as a structured prompt in a markdown file inside the `workflow/` directory. The AI used these prompts to implement features step by step, with each step building on the last.
+This project was developed using an AI-assisted workflow within an IDE that provides multiple coding agents through an automatic model selection mode. Instead of relying on a single model, the IDE automatically selected the most appropriate coding agent for each task.
+
+Development was organized into incremental steps documented in the workflow/ directory. Each step contains:
+
+- the goal of the phase
+- contextual information for the task
+- structured prompts guiding the AI agent
+- a checklist of objectives to implement
+
+The AI agents used these prompts to generate code suggestions, which were then reviewed, adjusted, and integrated into the project. This structured workflow allowed the project to be developed progressively, with each phase building on the previous one.
+
+The workflow files also serve as a reproducible record of how the application evolved from initial setup through feature implementation and documentation.
 
 **Workflow steps:**
 

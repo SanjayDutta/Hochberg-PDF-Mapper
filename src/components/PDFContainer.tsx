@@ -1,19 +1,16 @@
 "use client";
 
 import { useEffect, useMemo, useState, useRef } from "react";
+import { useRouter } from "next/navigation";
 import "react-pdf/dist/Page/AnnotationLayer.css";
 import "react-pdf/dist/Page/TextLayer.css";
-
-type PDFContainerProps = {
-  file: File;
-  onLoadComplete?: () => void;
-};
+import { updateTemplateVariablesAction, deleteTemplateAction } from "@/lib/templateActions";
 
 type ReactPdfModule = typeof import("react-pdf");
 
-type PdfFieldType = "text" | "number" | "dropdown" | "checkbox";
+type PdfFieldType = "text" | "number" | "dropdown" | "checkbox" | "date" | "radio";
 
-type PdfVariable = {
+export type PdfVariable = {
   id: string;
   key: string;
   label: string;
@@ -27,10 +24,19 @@ type PdfVariable = {
   maxLength?: number;
   minValue?: number;
   maxValue?: number;
+  minDate?: string;
+  maxDate?: string;
   allowDecimal?: boolean;
   dropdownOptions?: string[];
   checkboxOptions?: string[];
   required?: boolean;
+};
+
+type PDFContainerProps = {
+  file: File;
+  onLoadComplete?: () => void;
+  templateId?: string;
+  initialVariables?: PdfVariable[];
 };
 
 type VariableDragState = {
@@ -62,15 +68,50 @@ type VariablesHistory = {
 
 const MAX_UNDO_HISTORY_EVENTS = 50;
 
-export function PDFContainer({ file, onLoadComplete }: PDFContainerProps) {
+const convertToStoredVariable = (pdfVar: PdfVariable) => {
+  return {
+    key: pdfVar.key,
+    type: pdfVar.type,
+    page: pdfVar.page,
+    x: pdfVar.x,
+    y: pdfVar.y,
+    width: pdfVar.width ?? 100,
+    height: pdfVar.height ?? 30,
+    label: pdfVar.label,
+    config:
+      pdfVar.type === "dropdown" || pdfVar.type === "checkbox"
+        ? {
+            options:
+              pdfVar.type === "dropdown"
+                ? pdfVar.dropdownOptions ?? []
+                : pdfVar.checkboxOptions ?? [],
+          }
+        : undefined,
+    constraints: {
+      minLength: pdfVar.minLength ?? null,
+      maxLength: pdfVar.maxLength ?? null,
+      minValue: pdfVar.minValue ?? null,
+      maxValue: pdfVar.maxValue ?? null,
+      minDate: pdfVar.minDate ?? null,
+      maxDate: pdfVar.maxDate ?? null,
+      allowDecimal: pdfVar.allowDecimal ?? false,
+      required: pdfVar.required ?? false,
+    },
+  };
+};
+
+export function PDFContainer({ file, onLoadComplete, templateId, initialVariables }: PDFContainerProps) {
+  const router = useRouter();
   const [numPages, setNumPages] = useState<number | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [pageNumber, setPageNumber] = useState(1);
   const [reactPdf, setReactPdf] = useState<ReactPdfModule | null>(null);
   const [zoomScale, setZoomScale] = useState(1);
   const [documentName, setDocumentName] = useState(file.name);
   const [variablesHistory, setVariablesHistory] = useState<VariablesHistory>({
     past: [],
-    present: [],
+    present: initialVariables ?? [],
     future: [],
   });
   const [showPopup, setShowPopup] = useState(false);
@@ -80,6 +121,8 @@ export function PDFContainer({ file, onLoadComplete }: PDFContainerProps) {
   const [popupMaxLength, setPopupMaxLength] = useState("");
   const [popupMinValue, setPopupMinValue] = useState("");
   const [popupMaxValue, setPopupMaxValue] = useState("");
+  const [popupMinDate, setPopupMinDate] = useState("");
+  const [popupMaxDate, setPopupMaxDate] = useState("");
   const [popupAllowDecimal, setPopupAllowDecimal] = useState(false);
   const [popupDropdownOptions, setPopupDropdownOptions] = useState<string[]>([]);
   const [popupCheckboxOptions, setPopupCheckboxOptions] = useState<string[]>([]);
@@ -93,6 +136,11 @@ export function PDFContainer({ file, onLoadComplete }: PDFContainerProps) {
   const [dragState, setDragState] = useState<VariableDragState | null>(null);
   const [showFieldDetails, setShowFieldDetails] = useState(false);
   const [resizeState, setResizeState] = useState<VariableResizeState | null>(null);
+  const [showCoordinates, setShowCoordinates] = useState(false);
+  const [showLabels, setShowLabels] = useState(true);
+  const [showGetApiModal, setShowGetApiModal] = useState(false);
+  const [isApiUrlCopied, setIsApiUrlCopied] = useState(false);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
   const pdfContainerRef = useRef<HTMLDivElement>(null);
   const pdfPageRef = useRef<HTMLDivElement>(null);
   const hasDraggedRef = useRef(false);
@@ -146,6 +194,14 @@ export function PDFContainer({ file, onLoadComplete }: PDFContainerProps) {
   const getFieldTypeLabel = (fieldType: PdfFieldType) => {
     if (fieldType === "number") {
       return "Number";
+    }
+
+    if (fieldType === "date") {
+      return "Date";
+    }
+
+    if (fieldType === "radio") {
+      return "Radio";
     }
 
     if (fieldType === "dropdown") {
@@ -321,6 +377,12 @@ export function PDFContainer({ file, onLoadComplete }: PDFContainerProps) {
     };
   }, []);
 
+  useEffect(() => {
+    if (!templateId) return;
+    const storedVariables = variables.map(convertToStoredVariable);
+    updateTemplateVariablesAction(templateId, storedVariables);
+  }, [templateId, variables]);
+
   const openFieldPopup = (fieldType: PdfFieldType) => {
     const pageRect = pdfPageRef.current?.getBoundingClientRect();
     const defaultX = pageRect ? pageRect.width / zoomScale / 2 : 0;
@@ -333,6 +395,8 @@ export function PDFContainer({ file, onLoadComplete }: PDFContainerProps) {
     setPopupMaxLength("");
     setPopupMinValue("");
     setPopupMaxValue("");
+    setPopupMinDate("");
+    setPopupMaxDate("");
     setPopupAllowDecimal(false);
     setPopupDropdownOptions(fieldType === "dropdown" ? [""] : []);
     setPopupCheckboxOptions(fieldType === "checkbox" ? [""] : []);
@@ -358,6 +422,14 @@ export function PDFContainer({ file, onLoadComplete }: PDFContainerProps) {
 
   const handleAddCheckboxField = () => {
     openFieldPopup("checkbox");
+  };
+
+  const handleAddDateField = () => {
+    openFieldPopup("date");
+  };
+
+  const handleAddRadioField = () => {
+    openFieldPopup("radio");
   };
 
   const handleAddDropdownOption = () => {
@@ -413,7 +485,9 @@ export function PDFContainer({ file, onLoadComplete }: PDFContainerProps) {
       (droppedFieldType === "text" ||
         droppedFieldType === "number" ||
         droppedFieldType === "dropdown" ||
-        droppedFieldType === "checkbox") &&
+        droppedFieldType === "checkbox" ||
+        droppedFieldType === "date" ||
+        droppedFieldType === "radio") &&
       pdfPageRef.current
     ) {
       const rect = pdfPageRef.current.getBoundingClientRect();
@@ -446,6 +520,8 @@ export function PDFContainer({ file, onLoadComplete }: PDFContainerProps) {
       setPopupMaxLength("");
       setPopupMinValue("");
       setPopupMaxValue("");
+      setPopupMinDate("");
+      setPopupMaxDate("");
       setPopupAllowDecimal(false);
       setPopupDropdownOptions(droppedFieldType === "dropdown" ? [""] : []);
       setPopupCheckboxOptions(droppedFieldType === "checkbox" ? [""] : []);
@@ -469,6 +545,8 @@ export function PDFContainer({ file, onLoadComplete }: PDFContainerProps) {
     setPopupMaxLength(variable.maxLength?.toString() ?? "");
     setPopupMinValue(variable.minValue?.toString() ?? "");
     setPopupMaxValue(variable.maxValue?.toString() ?? "");
+    setPopupMinDate(variable.minDate ?? "");
+    setPopupMaxDate(variable.maxDate ?? "");
     setPopupAllowDecimal(Boolean(variable.allowDecimal));
     setPopupDropdownOptions(
       variable.type === "dropdown"
@@ -510,6 +588,8 @@ export function PDFContainer({ file, onLoadComplete }: PDFContainerProps) {
       setPopupMaxLength("");
       setPopupMinValue("");
       setPopupMaxValue("");
+      setPopupMinDate("");
+      setPopupMaxDate("");
       setPopupAllowDecimal(false);
       setPopupDropdownOptions([]);
       setPopupRequired(false);
@@ -712,6 +792,8 @@ export function PDFContainer({ file, onLoadComplete }: PDFContainerProps) {
       popupFieldType === "number" ? parseOptionalNumber(popupMinValue) : undefined;
     const normalizedMaxValue =
       popupFieldType === "number" ? parseOptionalNumber(popupMaxValue) : undefined;
+    const normalizedMinDate = popupFieldType === "date" ? popupMinDate.trim() || undefined : undefined;
+    const normalizedMaxDate = popupFieldType === "date" ? popupMaxDate.trim() || undefined : undefined;
     const normalizedAllowDecimal = popupFieldType === "number" ? popupAllowDecimal : undefined;
     const normalizedDropdownOptions =
       popupFieldType === "dropdown"
@@ -722,7 +804,7 @@ export function PDFContainer({ file, onLoadComplete }: PDFContainerProps) {
         ? popupCheckboxOptions.map((option) => option.trim()).filter((option) => option.length > 0)
         : undefined;
     const normalizedRequired =
-      popupFieldType === "text" || popupFieldType === "number"
+      popupFieldType === "text" || popupFieldType === "number" || popupFieldType === "date"
         ? popupRequired
         : undefined;
     let savedVariable: PdfVariable | null = null;
@@ -777,6 +859,16 @@ export function PDFContainer({ file, onLoadComplete }: PDFContainerProps) {
       return;
     }
 
+    if (
+      popupFieldType === "date" &&
+      normalizedMinDate !== undefined &&
+      normalizedMaxDate !== undefined &&
+      normalizedMinDate > normalizedMaxDate
+    ) {
+      alert("Minimum Date cannot be greater than Maximum Date.");
+      return;
+    }
+
     if (popupFieldType === "dropdown" && (!normalizedDropdownOptions || normalizedDropdownOptions.length === 0)) {
       alert("Please add at least one dropdown option.");
       return;
@@ -801,6 +893,8 @@ export function PDFContainer({ file, onLoadComplete }: PDFContainerProps) {
             maxLength: popupFieldType === "text" ? normalizedMaxLength : undefined,
             minValue: popupFieldType === "number" ? normalizedMinValue : undefined,
             maxValue: popupFieldType === "number" ? normalizedMaxValue : undefined,
+            minDate: popupFieldType === "date" ? normalizedMinDate : undefined,
+            maxDate: popupFieldType === "date" ? normalizedMaxDate : undefined,
             allowDecimal: popupFieldType === "number" ? normalizedAllowDecimal : undefined,
             dropdownOptions: popupFieldType === "dropdown" ? normalizedDropdownOptions : undefined,
             checkboxOptions: popupFieldType === "checkbox" ? normalizedCheckboxOptions : undefined,
@@ -820,6 +914,8 @@ export function PDFContainer({ file, onLoadComplete }: PDFContainerProps) {
             maxLength: popupFieldType === "text" ? normalizedMaxLength : undefined,
             minValue: popupFieldType === "number" ? normalizedMinValue : undefined,
             maxValue: popupFieldType === "number" ? normalizedMaxValue : undefined,
+            minDate: popupFieldType === "date" ? normalizedMinDate : undefined,
+            maxDate: popupFieldType === "date" ? normalizedMaxDate : undefined,
             allowDecimal: popupFieldType === "number" ? normalizedAllowDecimal : undefined,
             dropdownOptions: popupFieldType === "dropdown" ? normalizedDropdownOptions : undefined,
             checkboxOptions: popupFieldType === "checkbox" ? normalizedCheckboxOptions : undefined,
@@ -838,6 +934,8 @@ export function PDFContainer({ file, onLoadComplete }: PDFContainerProps) {
                 maxLength: popupFieldType === "text" ? normalizedMaxLength : undefined,
                 minValue: popupFieldType === "number" ? normalizedMinValue : undefined,
                 maxValue: popupFieldType === "number" ? normalizedMaxValue : undefined,
+                minDate: popupFieldType === "date" ? normalizedMinDate : undefined,
+                maxDate: popupFieldType === "date" ? normalizedMaxDate : undefined,
                 allowDecimal: popupFieldType === "number" ? normalizedAllowDecimal : undefined,
                 dropdownOptions: popupFieldType === "dropdown" ? normalizedDropdownOptions : undefined,
                 checkboxOptions: popupFieldType === "checkbox" ? normalizedCheckboxOptions : undefined,
@@ -861,6 +959,8 @@ export function PDFContainer({ file, onLoadComplete }: PDFContainerProps) {
         maxLength: popupFieldType === "text" ? normalizedMaxLength : undefined,
         minValue: popupFieldType === "number" ? normalizedMinValue : undefined,
         maxValue: popupFieldType === "number" ? normalizedMaxValue : undefined,
+        minDate: popupFieldType === "date" ? normalizedMinDate : undefined,
+        maxDate: popupFieldType === "date" ? normalizedMaxDate : undefined,
         allowDecimal: popupFieldType === "number" ? normalizedAllowDecimal : undefined,
         dropdownOptions: popupFieldType === "dropdown" ? normalizedDropdownOptions : undefined,
         checkboxOptions: popupFieldType === "checkbox" ? normalizedCheckboxOptions : undefined,
@@ -886,6 +986,8 @@ export function PDFContainer({ file, onLoadComplete }: PDFContainerProps) {
     setPopupMaxLength("");
     setPopupMinValue("");
     setPopupMaxValue("");
+    setPopupMinDate("");
+    setPopupMaxDate("");
     setPopupAllowDecimal(false);
     setPopupDropdownOptions([]);
     setPopupCheckboxOptions([]);
@@ -909,6 +1011,8 @@ export function PDFContainer({ file, onLoadComplete }: PDFContainerProps) {
             maxLength: savedVariable.maxLength,
             minValue: savedVariable.minValue,
             maxValue: savedVariable.maxValue,
+            minDate: savedVariable.minDate,
+            maxDate: savedVariable.maxDate,
             allowDecimal: savedVariable.allowDecimal,
             dropdownOptions: savedVariable.dropdownOptions,
             checkboxOptions: savedVariable.checkboxOptions,
@@ -932,6 +1036,8 @@ export function PDFContainer({ file, onLoadComplete }: PDFContainerProps) {
     setPopupMaxLength("");
     setPopupMinValue("");
     setPopupMaxValue("");
+    setPopupMinDate("");
+    setPopupMaxDate("");
     setPopupAllowDecimal(false);
     setPopupDropdownOptions([]);
     setPopupCheckboxOptions([]);
@@ -956,6 +1062,14 @@ export function PDFContainer({ file, onLoadComplete }: PDFContainerProps) {
           minValue: field.minValue ?? null,
           maxValue: field.maxValue ?? null,
           allowDecimal: field.allowDecimal ?? false,
+          required: field.required ?? false,
+        };
+      }
+
+      if (field.type === "date") {
+        return {
+          minDate: field.minDate ?? null,
+          maxDate: field.maxDate ?? null,
           required: field.required ?? false,
         };
       }
@@ -1024,6 +1138,29 @@ export function PDFContainer({ file, onLoadComplete }: PDFContainerProps) {
     URL.revokeObjectURL(downloadUrl);
   };
 
+  const handleReset = async () => {
+    setVariablesHistory({
+      past: [],
+      present: [],
+      future: [],
+    });
+    setShowResetConfirm(false);
+
+    // Sync reset to server
+    if (templateId) {
+      await updateTemplateVariablesAction(templateId, []);
+    }
+  };
+
+  const copyUrlToClipboard = () => {
+    const apiUrl = `GET ${window.location.origin}/${templateId}/getJson`;
+    navigator.clipboard.writeText(apiUrl);
+    setIsApiUrlCopied(true);
+    window.setTimeout(() => {
+      setIsApiUrlCopied(false);
+    }, 2000);
+  };
+
   const currentPageVariables = useMemo(
     () => variables.filter((variable) => variable.page === pageNumber),
     [variables, pageNumber]
@@ -1042,45 +1179,128 @@ export function PDFContainer({ file, onLoadComplete }: PDFContainerProps) {
       <div className="hidden md:flex flex-col h-full w-[30%] flex-shrink-0 rounded-md border border-slate-200 bg-white p-3">
         <h2 className="text-sm font-semibold text-slate-950">Fields</h2>
         <p className="mt-1 text-xs text-slate-950">Drag fields onto the PDF to place them.</p>
-        <button
-          type="button"
-          draggable
-          onDragStart={(e) => handleDragStart(e, "text")}
-          onClick={handleAddTextField}
-          className="mt-3 rounded border border-slate-300 px-3 py-2 text-left text-sm text-slate-900 hover:bg-slate-50 cursor-move"
-        >
-          + Text Field
-        </button>
-        <button
-          type="button"
-          draggable
-          onDragStart={(e) => handleDragStart(e, "number")}
-          onClick={handleAddNumberField}
-          className="mt-2 rounded border border-slate-300 px-3 py-2 text-left text-sm text-slate-900 hover:bg-slate-50 cursor-move"
-        >
-          + Number Field
-        </button>
-        <button
-          type="button"
-          draggable
-          onDragStart={(e) => handleDragStart(e, "checkbox")}
-          onClick={handleAddCheckboxField}
-          className="mt-2 rounded border border-slate-300 px-3 py-2 text-left text-sm text-slate-900 hover:bg-slate-50 cursor-move"
-        >
-          + Checkbox Field
-        </button>
-        <button
-          type="button"
-          draggable
-          onDragStart={(e) => handleDragStart(e, "dropdown")}
-          onClick={handleAddDropdownField}
-          className="mt-2 rounded border border-slate-300 px-3 py-2 text-left text-sm text-slate-900 hover:bg-slate-50 cursor-move"
-        >
-          + Dropdown Field
-        </button>
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            draggable
+            onDragStart={(e) => handleDragStart(e, "text")}
+            onClick={handleAddTextField}
+            className="rounded border border-slate-300 px-3 py-2 text-left text-sm text-slate-900 hover:bg-slate-50 cursor-move"
+          >
+            <i className="fa-solid fa-language mr-2"></i>Text
+          </button>
+          <button
+            type="button"
+            draggable
+            onDragStart={(e) => handleDragStart(e, "number")}
+            onClick={handleAddNumberField}
+            className="rounded border border-slate-300 px-3 py-2 text-left text-sm text-slate-900 hover:bg-slate-50 cursor-move"
+          >
+            <i className="fa-solid fa-hashtag mr-2"></i>Number
+          </button>
+          <button
+            type="button"
+            draggable
+            onDragStart={(e) => handleDragStart(e, "checkbox")}
+            onClick={handleAddCheckboxField}
+            className="rounded border border-slate-300 px-3 py-2 text-left text-sm text-slate-900 hover:bg-slate-50 cursor-move"
+          >
+            <i className="fa-solid fa-list-check mr-2"></i>Checklist
+          </button>
+          <button
+            type="button"
+            draggable
+            onDragStart={(e) => handleDragStart(e, "dropdown")}
+            onClick={handleAddDropdownField}
+            className="rounded border border-slate-300 px-3 py-2 text-left text-sm text-slate-900 hover:bg-slate-50 cursor-move"
+          >
+            <i className="fa-solid fa-angles-down mr-2"></i>Dropdown
+          </button>
+          <button
+            type="button"
+            draggable
+            onDragStart={(e) => handleDragStart(e, "date")}
+            onClick={handleAddDateField}
+            className="rounded border border-slate-300 px-3 py-2 text-left text-sm text-slate-900 hover:bg-slate-50 cursor-move"
+          >
+            <i className="fa-solid fa-calendar-days mr-2"></i>Date
+          </button>
+          <button
+            type="button"
+            draggable
+            onDragStart={(e) => handleDragStart(e, "radio")}
+            onClick={handleAddRadioField}
+            className="rounded border border-slate-300 px-3 py-2 text-left text-sm text-slate-900 hover:bg-slate-50 cursor-move"
+          >
+            <i className="fa-solid fa-circle-dot mr-2"></i>Radio
+          </button>
+        </div>
         <p className="mt-3 text-xs text-slate-950">
           Total variables: <span className="font-medium text-slate-900">{variables.length}</span>
         </p>
+
+        {/* View Options */}
+        <div className="mt-4 border-t border-slate-200 pt-3">
+          <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">View Options</h3>
+          <label className="flex cursor-pointer items-center gap-2 rounded px-1 py-1 hover:bg-slate-50">
+            <input
+              type="checkbox"
+              checked={showLabels}
+              onChange={(e) => setShowLabels(e.target.checked)}
+              className="h-3.5 w-3.5 accent-blue-600"
+            />
+            <span className="text-xs text-slate-800">Show Labels</span>
+          </label>
+          <label className="flex cursor-pointer items-center gap-2 rounded px-1 py-1 hover:bg-slate-50">
+            <input
+              type="checkbox"
+              checked={showCoordinates}
+              onChange={(e) => setShowCoordinates(e.target.checked)}
+              className="h-3.5 w-3.5 accent-blue-600"
+            />
+            <span className="text-xs text-slate-800">Show Coordinates</span>
+          </label>
+        </div>
+
+        {/* Actions */}
+        <div className="mt-4 border-t border-slate-200 pt-3">
+          <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Actions</h3>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={handleDownloadVariables}
+              className="rounded bg-blue-500 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-600 transition-colors"
+            >
+              Download
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setIsApiUrlCopied(false);
+                setShowGetApiModal(true);
+              }}
+              className="rounded bg-green-500 px-3 py-2 text-xs font-semibold text-white hover:bg-green-600 transition-colors"
+            >
+              Get API
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowResetConfirm(true)}
+              className="rounded bg-yellow-500 px-3 py-2 text-xs font-semibold text-white hover:bg-yellow-600 transition-colors"
+            >
+              Reset
+            </button>
+            {templateId && (
+              <button
+                type="button"
+                onClick={() => setShowDeleteConfirm(true)}
+                className="rounded bg-red-500 px-3 py-2 text-xs font-semibold text-white hover:bg-red-600 transition-colors"
+              >
+                Delete
+              </button>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* Middle: main PDF viewer + pagination — full width on mobile, 50% on desktop */}
@@ -1097,13 +1317,6 @@ export function PDFContainer({ file, onLoadComplete }: PDFContainerProps) {
               aria-label="Document name"
             />
             <div className="ml-auto flex items-center gap-2">
-              <button
-                type="button"
-                onClick={handleDownloadVariables}
-                className="rounded border border-slate-300 px-3 py-1 text-sm text-slate-900 hover:bg-slate-50"
-              >
-                Download
-              </button>
               <button
                 type="button"
                 onClick={handleUndo}
@@ -1172,6 +1385,101 @@ export function PDFContainer({ file, onLoadComplete }: PDFContainerProps) {
           </div>
         </div>
 
+        {showDeleteConfirm && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+            <div className="w-full max-w-sm rounded-xl border border-slate-200 bg-white p-6 shadow-lg">
+              <h3 className="mb-2 text-base font-semibold text-black">Delete Template?</h3>
+              <p className="mb-6 text-sm text-slate-900">
+                Are you sure you want to delete <span className="font-medium">&ldquo;{file.name}&rdquo;</span>? This cannot be undone.
+              </p>
+              <div className="flex justify-end gap-3">
+                <button
+                  onClick={() => setShowDeleteConfirm(false)}
+                  disabled={isDeleting}
+                  className="rounded border border-slate-300 px-4 py-2 text-sm text-black hover:bg-slate-50 disabled:opacity-50"
+                >
+                  No
+                </button>
+                <button
+                  onClick={async () => {
+                    if (!templateId) return;
+                    setIsDeleting(true);
+                    await deleteTemplateAction(templateId);
+                    router.push("/");
+                  }}
+                  disabled={isDeleting}
+                  className="rounded bg-red-500 px-4 py-2 text-sm text-white hover:bg-red-600 disabled:opacity-50"
+                >
+                  {isDeleting ? "Deleting..." : "Yes"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {showResetConfirm && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+            <div className="w-full max-w-sm rounded-xl border border-slate-200 bg-white p-6 shadow-lg">
+              <h3 className="mb-2 text-base font-semibold text-black">Reset All Fields?</h3>
+              <p className="mb-6 text-sm text-slate-900">
+                Are you sure you want to remove all added fields? This cannot be undone.
+              </p>
+              <div className="flex justify-end gap-3">
+                <button
+                  onClick={() => setShowResetConfirm(false)}
+                  className="rounded border border-slate-300 px-4 py-2 text-sm text-black hover:bg-slate-50"
+                >
+                  No
+                </button>
+                <button
+                  onClick={handleReset}
+                  className="rounded bg-yellow-500 px-4 py-2 text-sm text-white hover:bg-yellow-600"
+                >
+                  Yes
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {showGetApiModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+            <div className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-6 shadow-lg">
+              <h3 className="mb-4 text-base font-semibold text-black">API Endpoint</h3>
+              <div className="mb-4 flex items-center gap-2">
+                <input
+                  type="text"
+                  readOnly
+                  value={`GET ${typeof window !== 'undefined' ? window.location.origin : ''}/${templateId}/getJson`}
+                  className="w-full max-w-[280px] rounded border border-slate-300 px-2 py-1.5 text-[11px] font-mono text-slate-700 bg-slate-50"
+                />
+                <button
+                  onClick={copyUrlToClipboard}
+                  className="rounded bg-blue-500 px-3 py-2 text-xs font-medium text-white hover:bg-blue-600 transition-colors"
+                >
+                  {isApiUrlCopied ? "Copied to Clipboard" : "Copy to Clipboard"}
+                </button>
+              </div>
+              <div className="mb-4 rounded bg-blue-50 border border-blue-200 p-3">
+                <p className="text-xs text-slate-700">
+                  <span className="font-semibold">Instructions:</span> Copy the above URL and paste it in your browser or use API clients to fetch the JSON payload.
+                </p>
+              </div>
+              <div className="flex justify-end">
+                <button
+                  onClick={() => {
+                    setShowGetApiModal(false);
+                    setIsApiUrlCopied(false);
+                  }}
+                  className="rounded bg-slate-300 px-4 py-2 text-sm font-medium text-black hover:bg-slate-400"
+                >
+                  Okay
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Scrollable main page area */}
         <div
           ref={pdfContainerRef}
@@ -1203,9 +1511,16 @@ export function PDFContainer({ file, onLoadComplete }: PDFContainerProps) {
                         height: `${(variable.height ?? 30) * zoomScale}px`,
                       }}
                     >
-                      <span className="pointer-events-none flex h-full w-full items-center justify-center truncate px-2 text-center">
-                        {`{{${variable.label}}}`}
-                      </span>
+                      {showLabels && (
+                        <span className="pointer-events-none flex h-full w-full items-center justify-center truncate px-2 text-center">
+                          {`{{${variable.label}}}`}
+                        </span>
+                      )}
+                      {showCoordinates && (
+                        <span className="pointer-events-none absolute flex items-center justify-center rounded border border-blue-600 bg-blue-600 px-1.5 py-0.5 text-[9px] font-mono font-semibold leading-none text-white opacity-95 whitespace-nowrap" style={{ bottom: '100%', left: 0, transform: 'translateY(-2px)' }}>
+                          {Math.round(variable.x)},{Math.round(variable.y)}
+                        </span>
+                      )}
                       <span
                         onMouseDown={(e) => handleDeleteVariable(e, variable.id)}
                         onClick={(e) => handleDeleteVariable(e, variable.id)}
@@ -1413,6 +1728,45 @@ export function PDFContainer({ file, onLoadComplete }: PDFContainerProps) {
             </div>
           )}
 
+          {popupFieldType === "date" && (
+            <div className="mb-6 rounded border border-slate-200 p-3">
+              <p className="mb-3 text-sm font-medium text-slate-900">Date Constraints</p>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-slate-900">
+                    Minimum Date
+                  </label>
+                  <input
+                    type="date"
+                    value={popupMinDate}
+                    onChange={(event) => setPopupMinDate(event.target.value)}
+                    className="w-full rounded border border-slate-300 px-3 py-2 text-sm text-black focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-slate-900">
+                    Maximum Date
+                  </label>
+                  <input
+                    type="date"
+                    value={popupMaxDate}
+                    onChange={(event) => setPopupMaxDate(event.target.value)}
+                    className="w-full rounded border border-slate-300 px-3 py-2 text-sm text-black focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
+              <label className="mt-3 flex items-center gap-2 text-sm text-slate-900">
+                <input
+                  type="checkbox"
+                  checked={popupRequired}
+                  onChange={(event) => setPopupRequired(event.target.checked)}
+                  className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                />
+                Required
+              </label>
+            </div>
+          )}
+
           {popupFieldType === "dropdown" && (
             <div className="mb-6 rounded border border-slate-200 p-3">
               <p className="mb-3 text-sm font-medium text-slate-900">Dropdown Options</p>
@@ -1559,6 +1913,22 @@ export function PDFContainer({ file, onLoadComplete }: PDFContainerProps) {
                               </div>
                             </>
                           )}
+                          {editingVariable.type === "date" && (
+                            <>
+                              <div className="flex justify-between">
+                                <span className="font-medium text-slate-900">Minimum Date:</span>
+                                <span className="text-slate-950">{editingVariable.minDate ?? "-"}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="font-medium text-slate-900">Maximum Date:</span>
+                                <span className="text-slate-950">{editingVariable.maxDate ?? "-"}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="font-medium text-slate-900">Required:</span>
+                                <span className="text-slate-950">{editingVariable.required ? "Yes" : "No"}</span>
+                              </div>
+                            </>
+                          )}
                           {editingVariable.type === "dropdown" && (
                             <div>
                               <p className="mb-1 font-medium text-slate-900">Options:</p>
@@ -1641,6 +2011,22 @@ export function PDFContainer({ file, onLoadComplete }: PDFContainerProps) {
                           <div className="flex justify-between">
                             <span className="font-medium text-slate-900">Allow Decimal:</span>
                             <span className="text-slate-950">{popupAllowDecimal ? "Yes" : "No"}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="font-medium text-slate-900">Required:</span>
+                            <span className="text-slate-950">{popupRequired ? "Yes" : "No"}</span>
+                          </div>
+                        </>
+                      )}
+                      {popupFieldType === "date" && (
+                        <>
+                          <div className="flex justify-between">
+                            <span className="font-medium text-slate-900">Minimum Date:</span>
+                            <span className="text-slate-950">{popupMinDate.trim() || "-"}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="font-medium text-slate-900">Maximum Date:</span>
+                            <span className="text-slate-950">{popupMaxDate.trim() || "-"}</span>
                           </div>
                           <div className="flex justify-between">
                             <span className="font-medium text-slate-900">Required:</span>

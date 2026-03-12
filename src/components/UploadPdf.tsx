@@ -1,46 +1,98 @@
 "use client";
 
 import { useCallback, useState } from "react";
+import { useRouter } from "next/navigation";
 import { PDFContainer } from "./PDFContainer";
+import { createTemplateAction } from "@/lib/templateActions";
 
 const MAX_SIZE_BYTES = 5 * 1024 * 1024;
 
 export function UploadPdf() {
+  const router = useRouter();
   const [file, setFile] = useState<File | null>(null);
   const [status, setStatus] = useState<null | { ok: boolean; message: string }>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [isLoadingPdf, setIsLoadingPdf] = useState(false);
   const [isPdfReady, setIsPdfReady] = useState(false);
 
-  const validateAndStore = useCallback((selectedFile: File | null) => {
-    if (!selectedFile) {
-      setStatus({ ok: false, message: "No file selected." });
-      return;
-    }
+  const handleFileReady = useCallback(
+    async (selectedFile: File) => {
+      const reader = new FileReader();
 
-    const isPdf =
-      selectedFile.type === "application/pdf" ||
-      selectedFile.name.toLowerCase().endsWith(".pdf");
-    if (!isPdf) {
-      setFile(null);
-      setStatus({ ok: false, message: "File upload fail: only PDF files are allowed." });
-      return;
-    }
+      reader.onload = async (e) => {
+        try {
+          const arrayBuffer = e.target?.result as ArrayBuffer;
+          const uint8Array = new Uint8Array(arrayBuffer);
+          const binaryString = Array.from(uint8Array)
+            .map((byte) => String.fromCharCode(byte))
+            .join("");
+          const base64String = btoa(binaryString);
 
-    if (selectedFile.size > MAX_SIZE_BYTES) {
-      setFile(null);
-      setStatus({ ok: false, message: "File upload fail: file size must be ≤ 5MB." });
-      return;
-    }
+          // Generate UUID
+          const uuid = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
-    setFile(selectedFile);
-    setIsPdfReady(false);
-    setIsLoadingPdf(true);
-    setStatus({
-      ok: true,
-      message: `File upload success. Size: ${(selectedFile.size / (1024 * 1024)).toFixed(2)} MB.`,
-    });
-  }, []);
+          // Create template in store on server
+          await createTemplateAction(uuid, selectedFile.name, base64String);
+
+          // Redirect to /{uuid}
+          router.push(`/${uuid}`);
+        } catch (error) {
+          setStatus({
+            ok: false,
+            message: "Failed to process PDF. Please try again.",
+          });
+          setIsLoadingPdf(false);
+        }
+      };
+
+      reader.onerror = () => {
+        setStatus({
+          ok: false,
+          message: "Failed to read file. Please try again.",
+        });
+        setIsLoadingPdf(false);
+      };
+
+      reader.readAsArrayBuffer(selectedFile);
+    },
+    [router]
+  );
+
+  const validateAndStore = useCallback(
+    (selectedFile: File | null) => {
+      if (!selectedFile) {
+        setStatus({ ok: false, message: "No file selected." });
+        return;
+      }
+
+      const isPdf =
+        selectedFile.type === "application/pdf" ||
+        selectedFile.name.toLowerCase().endsWith(".pdf");
+      if (!isPdf) {
+        setFile(null);
+        setStatus({ ok: false, message: "File upload fail: only PDF files are allowed." });
+        return;
+      }
+
+      if (selectedFile.size > MAX_SIZE_BYTES) {
+        setFile(null);
+        setStatus({ ok: false, message: "File upload fail: file size must be ≤ 5MB." });
+        return;
+      }
+
+      setFile(selectedFile);
+      setIsPdfReady(false);
+      setIsLoadingPdf(true);
+      setStatus({
+        ok: true,
+        message: `File upload success. Size: ${(selectedFile.size / (1024 * 1024)).toFixed(2)} MB.`,
+      });
+
+      // Trigger PDF processing
+      handleFileReady(selectedFile);
+    },
+    [handleFileReady]
+  );
 
   const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = event.target.files?.[0] ?? null;

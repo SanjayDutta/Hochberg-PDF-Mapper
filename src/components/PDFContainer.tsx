@@ -1587,8 +1587,11 @@ export function PDFContainer({ file, onLoadComplete, templateId, initialVariable
                   {isApiUrlCopied ? "Copied to Clipboard" : "Copy to Clipboard"}
                 </button>
               </div>
-              <div className="mb-4 rounded bg-blue-50 border border-blue-200 p-3">
-                <p className="text-xs text-slate-700">
+              <div
+                className="mb-4 rounded border border-slate-300 p-3"
+                style={{ backgroundColor: "#ffffff" }}
+              >
+                <p className="text-xs" style={{ color: "#000000" }}>
                   <span className="font-semibold">Instructions:</span> Copy the above URL and paste it in your browser or use API clients to fetch the JSON payload.
                 </p>
               </div>

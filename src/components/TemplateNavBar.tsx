@@ -35,26 +35,43 @@ export function TemplateNavBar({ templates }: TemplateNavBarProps) {
 
   return (
     <div className="relative border-b border-slate-300 bg-white px-4 py-3" ref={menuRef}>
-      <button
-        type="button"
-        onClick={() => setIsMenuOpen((previous) => !previous)}
-        aria-label="Open recent work"
-        className="flex h-9 w-9 items-center justify-center rounded border border-slate-300 text-black hover:bg-slate-50"
-      >
-        <i className="fa-solid fa-bars"></i>
-      </button>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setIsMenuOpen((previous) => !previous)}
+            aria-label="Open recent work"
+            className="flex h-9 w-9 items-center justify-center rounded border border-slate-300 text-black hover:bg-slate-50"
+          >
+            <i className="fa-solid fa-bars"></i>
+          </button>
+          <h1 className="text-lg font-semibold uppercase tracking-wide text-slate-900">PDF Variable Mapper</h1>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={toggleTheme}
+            aria-label="Toggle theme"
+            className="flex h-9 w-9 items-center justify-center rounded border border-slate-300 text-black hover:bg-slate-50"
+            title={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
+          >
+            <i className={isDarkMode ? "fa-solid fa-sun" : "fa-solid fa-moon"} />
+          </button>
+          <Link
+            href="/"
+            aria-label="Go to home"
+            className="flex h-9 w-9 items-center justify-center rounded border border-slate-300 text-black hover:bg-slate-50"
+          >
+            <i className="fa-solid fa-house"></i>
+          </Link>
+        </div>
+      </div>
 
       {isMenuOpen && (
         <div className="absolute left-4 top-14 z-50 w-[420px] rounded-lg border border-slate-300 bg-white p-4 shadow-lg">
-          <div className="mb-3 flex items-center justify-between">
+          <div className="mb-3">
             <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-900">Recent Work</h2>
-            <button
-              type="button"
-              onClick={toggleTheme}
-              className="rounded border border-slate-300 px-3 py-1 text-xs text-black hover:bg-slate-50"
-            >
-              {isDarkMode ? "Light Mode" : "Dark Mode"}
-            </button>
           </div>
 
           {templates.length === 0 ? (

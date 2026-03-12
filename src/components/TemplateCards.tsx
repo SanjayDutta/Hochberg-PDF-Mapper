@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useState } from "react";
 import { deleteTemplateAction } from "@/lib/templateActions";
-import { useTheme } from "@/components/ThemeProvider";
 
 type TemplateCardItem = {
   id: string;
@@ -15,7 +14,6 @@ export function TemplateCards({ templates: initialTemplates }: { templates: Temp
   const [templates, setTemplates] = useState(initialTemplates);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
-  const { isDarkMode, toggleTheme } = useTheme();
 
   const handleDeleteConfirm = async () => {
     if (!confirmDeleteId) return;
@@ -30,31 +28,23 @@ export function TemplateCards({ templates: initialTemplates }: { templates: Temp
 
   return (
     <>
-      <div className="w-full border-b border-slate-200 bg-white px-6 py-4">
-        <div className="mb-3 flex items-center justify-between">
+      <div className="w-full rounded-xl border border-slate-200 bg-white px-6 py-5">
+        <div className="mb-3">
           <h2 className="text-sm font-semibold text-slate-900 uppercase tracking-wide">
             Recent Work
           </h2>
-          <button
-            onClick={toggleTheme}
-            className="flex items-center gap-1.5 rounded border border-slate-300 px-3 py-1 text-xs font-medium text-slate-700 hover:bg-slate-100 transition-colors"
-            title="Toggle Light/Dark Mode"
-          >
-            <i className={isDarkMode ? "fa-solid fa-sun" : "fa-solid fa-moon"} />
-            {isDarkMode ? "Light Mode" : "Dark Mode"}
-          </button>
         </div>
         {templates.length === 0 ? (
           <p className="text-sm text-slate-500">
             No templates yet. Upload a PDF below to get started.
           </p>
         ) : (
-          <div className="flex flex-row gap-3 overflow-x-auto pb-1">
+          <div className="mt-2 flex flex-row gap-3 overflow-x-auto pb-1 pt-1">
             {templates.map((t) => (
               <div key={t.id} className="relative min-w-[180px] max-w-[220px]">
                 <button
                   onClick={() => setConfirmDeleteId(t.id)}
-                  className="absolute -top-2 -left-2 z-10 flex h-5 w-5 items-center justify-center rounded-full bg-slate-200 text-black text-xs font-bold hover:bg-red-500 hover:text-white transition-colors"
+                  className="absolute right-2 top-2 z-10 flex h-5 w-5 items-center justify-center rounded-full bg-slate-200 text-black text-xs font-bold hover:bg-red-500 hover:text-white transition-colors"
                   title="Delete template"
                 >
                   ×

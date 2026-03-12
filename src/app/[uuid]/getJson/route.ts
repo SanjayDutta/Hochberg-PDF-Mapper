@@ -63,34 +63,32 @@ export async function GET(
       return undefined;
     };
 
-    const payload = [
-      {
-        documentName: template.documentName,
-        metadata: {
-          coordinateSystem: {
-            origin: "top-left",
-            units: "pixels",
-            pageIndex: "1-based",
-          },
+    const payload = {
+      documentName: template.documentName,
+      metadata: {
+        coordinateSystem: {
+          origin: "top-left",
+          units: "pixels",
+          pageIndex: "1-based",
         },
-        variables: template.variables.map((field) => {
-          const config = getConfig(field);
-
-          return {
-            key: field.key,
-            type: field.type,
-            page: field.page,
-            x: field.x,
-            y: field.y,
-            width: field.width ?? 100,
-            height: field.height ?? 30,
-            label: field.label,
-            ...(config ? { config } : {}),
-            constraints: getConstraints(field),
-          };
-        }),
       },
-    ];
+      variables: template.variables.map((field) => {
+        const config = getConfig(field);
+
+        return {
+          key: field.key,
+          type: field.type,
+          page: field.page,
+          x: field.x,
+          y: field.y,
+          width: field.width ?? 100,
+          height: field.height ?? 30,
+          label: field.label,
+          ...(config ? { config } : {}),
+          constraints: getConstraints(field),
+        };
+      }),
+    };
 
     return NextResponse.json(payload);
   } catch (error) {

@@ -34,4 +34,22 @@
 
 - [x] I want to add dark mode, already we have buttons in place to do the switching (in Recent Works tab). Upon clicking them, i want to have dark mode in the application. Colors for different background can be rgb(61,61,61), rgb(33,33,33) and rgb(24,24,24). Font color should be white
 
+- [x] Beside the hamburger menu icon, add header - PDF Variable Mapper and on the extreme right , add a house icon, which upon clicking will take the user to the root page
 
+- [x] in the root page, at the extreme top, add the header - PDF Variable Mapper and move the recent-work down, keeping some gap between header and recent-work
+
+- [x] Increase the width of the UploadPDf Component
+
+- [x] in the path url/{uuid}, we have the dark/light mode switcher in the recent works hamnurger menu. Instead move this to the top-left, just beside the home icon
+
+- [x] in the right pane add borders around each page, the border color need not to be black but a darker shade from the background
+
+- [x] In the PageContainer, I have pagination tool (Something like Page 1 of Total), I want to have a small numberical box, where users can directly insert the page number as text, the that page from of the pdf will be rendered below. minimum value can be 1 and mximum value can be the total pages. So if some enters values less than 1, it sshould default to 1 and any valu higher than maximum pages, should default back to the maximum page number
+
+- [x] The selected page in the right pane, should also be highlighted as per the page that is being rendered. So if user goes from page 1 to page 8 (either via entering the page number or by clicking next), the right pane should also scroll to that page, instead of remaining static and unhighligted
+
+- [x] The buttons on the left should have different colors - Download (Background-#3B82F6,Hover-#2563EB,Text-#FFFFFF), Get API (Background-#10B981,Hover-#059669,Text-#FFFFFF), Reset (Background-#F59E0B,Hover-#D97706,Text-#FFFFFF), Delete (Background-#EF4444,Hover-#DC2626,Text-#FFFFFF)
+
+- [x] For the undo and redo, replace the the text with font awesome undo-<i class="fa-solid fa-rotate-left"></i> and redo- <i class="fa-solid fa-rotate-right"></i>
+
+- [x] The JSON that is generated when downloading/using GET APIs, is currently enclosed in [...]. We do not need this to be in an array, since the JSON payload return is just one object, with all key-value pairs in it, no multiple objects

@@ -21,21 +21,21 @@ body {
 html[data-theme="dark"],
 html.dark-mode,
 body.dark-mode {
-  --background: rgb(24, 24, 24);
+  --background: rgb(90, 90, 90);
   --foreground: #ffffff;
 }
 
 html[data-theme="dark"] body,
 html.dark-mode body,
 body.dark-mode {
-  background: rgb(24, 24, 24);
+  background: rgb(90, 90, 90);
   color: #ffffff;
 }
 
 html[data-theme="dark"] .bg-white,
 html.dark-mode .bg-white,
 body.dark-mode .bg-white {
-  background-color: rgb(33, 33, 33) !important;
+  background-color: rgb(62, 62, 62) !important;
 }
 
 html[data-theme="dark"] .bg-slate-50,
@@ -44,7 +44,7 @@ html.dark-mode .bg-slate-50,
 html.dark-mode .bg-slate-100,
 body.dark-mode .bg-slate-50,
 body.dark-mode .bg-slate-100 {
-  background-color: rgb(61, 61, 61) !important;
+  background-color: rgb(52, 52, 52) !important;
 }
 
 html[data-theme="dark"] .border-slate-200,
@@ -56,7 +56,7 @@ html.dark-mode .border-slate-400,
 body.dark-mode .border-slate-200,
 body.dark-mode .border-slate-300,
 body.dark-mode .border-slate-400 {
-  border-color: rgb(61, 61, 61) !important;
+  border-color: rgb(52, 52, 52) !important;
 }
 
 html[data-theme="dark"] .text-black,
@@ -95,9 +95,9 @@ html.dark-mode select,
 body.dark-mode input,
 body.dark-mode textarea,
 body.dark-mode select {
-  background-color: rgb(33, 33, 33) !important;
+  background-color: rgb(62, 62, 62) !important;
   color: #ffffff !important;
-  border-color: rgb(61, 61, 61) !important;
+  border-color: rgb(90, 90, 90) !important;
 }
 
 html[data-theme="dark"] .shadow-sm,
@@ -115,7 +115,7 @@ html.dark-mode .hover\:bg-slate-50:hover,
 html.dark-mode .hover\:bg-slate-100:hover,
 body.dark-mode .hover\:bg-slate-50:hover,
 body.dark-mode .hover\:bg-slate-100:hover {
-  background-color: rgb(61, 61, 61) !important;
+  background-color: rgb(52, 52, 52) !important;
 }
 
 html[data-theme="dark"] .hover\:border-slate-400:hover,
@@ -140,4 +140,71 @@ html[data-theme="dark"] .hover\:bg-red-50:hover,
 html.dark-mode .hover\:bg-red-50:hover,
 body.dark-mode .hover\:bg-red-50:hover {
   background-color: rgba(239, 68, 68, 0.18) !important;
+}
+
+html[data-theme="dark"] .undo-redo-icon,
+html.dark-mode .undo-redo-icon,
+body.dark-mode .undo-redo-icon {
+  color: #ffffff !important;
+}
+
+.pdf-viewer-area {
+  background-color: rgb(241, 245, 249);
+}
+
+html[data-theme="dark"] .pdf-viewer-area,
+html.dark-mode .pdf-viewer-area,
+body.dark-mode .pdf-viewer-area {
+  background-color: rgb(115, 115, 115) !important;
+}
+
+.thumbnail-scrollbar {
+  scrollbar-width: auto;
+  scrollbar-color: rgb(148, 163, 184) rgb(226, 232, 240);
+}
+
+.thumbnail-scrollbar-left {
+  direction: rtl;
+}
+
+.thumbnail-scrollbar-content {
+  direction: ltr;
+}
+
+.thumbnail-scrollbar::-webkit-scrollbar {
+  width: 10px;
+}
+
+.thumbnail-scrollbar::-webkit-scrollbar-track {
+  background: rgb(226, 232, 240);
+  border-radius: 9999px;
+}
+
+.thumbnail-scrollbar::-webkit-scrollbar-thumb {
+  background: rgb(148, 163, 184);
+  border-radius: 9999px;
+}
+
+.thumbnail-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgb(100, 116, 139);
+}
+
+html[data-theme="dark"] .thumbnail-scrollbar,
+html.dark-mode .thumbnail-scrollbar,
+body.dark-mode .thumbnail-scrollbar {
+  scrollbar-color: rgb(148, 163, 184) rgb(62, 62, 62);
+}
+
+html[data-theme="dark"] .thumbnail-scrollbar::-webkit-scrollbar-track,
+html.dark-mode .thumbnail-scrollbar::-webkit-scrollbar-track,
+body.dark-mode .thumbnail-scrollbar::-webkit-scrollbar-track {
+  background: rgb(62, 62, 62);
+}
+
+.feature-scroll-track {
+  scrollbar-width: none;
+}
+
+.feature-scroll-track::-webkit-scrollbar {
+  display: none;
 }

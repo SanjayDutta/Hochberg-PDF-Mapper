@@ -151,8 +151,8 @@ export function UploadPdf() {
 
   // Phase 1: Upload form
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-50">
-      <div className="w-full max-w-md rounded-xl border border-dashed border-slate-300 bg-white p-6 shadow-sm">
+    <div className="flex w-full items-start justify-center bg-slate-50">
+      <div className="w-full max-w-2xl rounded-xl border border-dashed border-slate-300 bg-white p-6 shadow-sm">
         <h1 className="mb-4 text-center text-2xl font-semibold text-slate-950">
           Upload PDF
         </h1>

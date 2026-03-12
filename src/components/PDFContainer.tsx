@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import "react-pdf/dist/Page/AnnotationLayer.css";
 import "react-pdf/dist/Page/TextLayer.css";
 import { updateTemplateVariablesAction, deleteTemplateAction } from "@/lib/templateActions";
+import { FieldAttributesSchema, type FieldData } from "@/lib/fieldSchema";
+import { useTheme } from "@/components/ThemeProvider";
 
 type ReactPdfModule = typeof import("react-pdf");
 
@@ -102,10 +104,12 @@ const convertToStoredVariable = (pdfVar: PdfVariable) => {
 
 export function PDFContainer({ file, onLoadComplete, templateId, initialVariables }: PDFContainerProps) {
   const router = useRouter();
+  const { isDarkMode } = useTheme();
   const [numPages, setNumPages] = useState<number | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [pageNumber, setPageNumber] = useState(1);
+  const [pageInputValue, setPageInputValue] = useState("1");
   const [reactPdf, setReactPdf] = useState<ReactPdfModule | null>(null);
   const [zoomScale, setZoomScale] = useState(1);
   const [documentName, setDocumentName] = useState(file.name);
@@ -141,8 +145,16 @@ export function PDFContainer({ file, onLoadComplete, templateId, initialVariable
   const [showGetApiModal, setShowGetApiModal] = useState(false);
   const [isApiUrlCopied, setIsApiUrlCopied] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [showUploadJsonModal, setShowUploadJsonModal] = useState(false);
+  const [uploadJsonError, setUploadJsonError] = useState("");
+  const [showUploadJsonErrorModal, setShowUploadJsonErrorModal] = useState(false);
+  const [showDownloadValidationModal, setShowDownloadValidationModal] = useState(false);
+  const [downloadValidationStatus, setDownloadValidationStatus] = useState<"progress" | "success" | "error">("progress");
+  const [downloadValidationMessage, setDownloadValidationMessage] = useState("");
+  const [pendingJsonFile, setPendingJsonFile] = useState<File | null>(null);
   const pdfContainerRef = useRef<HTMLDivElement>(null);
   const pdfPageRef = useRef<HTMLDivElement>(null);
+  const thumbnailContainerRef = useRef<HTMLDivElement>(null);
   const hasDraggedRef = useRef(false);
   const hasResizedRef = useRef(false);
   const dragStartVariablesRef = useRef<PdfVariable[] | null>(null);
@@ -190,6 +202,41 @@ export function PDFContainer({ file, onLoadComplete, templateId, initialVariable
   const canZoomIn = zoomScale < 2;
   const canUndo = variablesHistory.past.length > 0;
   const canRedo = variablesHistory.future.length > 0;
+
+  useEffect(() => {
+    setPageInputValue(String(pageNumber));
+  }, [pageNumber]);
+
+  useEffect(() => {
+    if (!numPages || !thumbnailContainerRef.current) {
+      return;
+    }
+
+    const activeThumbnail = thumbnailContainerRef.current.querySelector<HTMLElement>(
+      `[data-thumbnail-page="${pageNumber}"]`
+    );
+
+    if (activeThumbnail) {
+      activeThumbnail.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    }
+  }, [pageNumber, numPages]);
+
+  const clampPageNumber = (value: number) => {
+    const maxPage = numPages ?? 1;
+
+    if (!Number.isFinite(value)) {
+      return 1;
+    }
+
+    return Math.min(maxPage, Math.max(1, Math.floor(value)));
+  };
+
+  const applyPageInput = () => {
+    const parsedPage = Number(pageInputValue);
+    const nextPage = clampPageNumber(parsedPage);
+    setPageNumber(nextPage);
+    setPageInputValue(String(nextPage));
+  };
 
   const getFieldTypeLabel = (fieldType: PdfFieldType) => {
     if (fieldType === "number") {
@@ -1045,8 +1092,12 @@ export function PDFContainer({ file, onLoadComplete, templateId, initialVariable
     setPopupKeyError("");
   };
 
-  const handleDownloadVariables = () => {
+  const handleDownloadVariables = async () => {
     const normalizedDocumentName = documentName.trim() || file.name;
+
+    setShowDownloadValidationModal(true);
+    setDownloadValidationStatus("progress");
+    setDownloadValidationMessage("JSON evaluation is in progress.");
 
     const getConstraints = (field: PdfVariable) => {
       if (field.type === "text") {
@@ -1093,49 +1144,68 @@ export function PDFContainer({ file, onLoadComplete, templateId, initialVariable
       return undefined;
     };
 
-    const payload = [
-      {
-        documentName: normalizedDocumentName,
-        metadata: {
-          coordinateSystem: {
-            origin: "top-left",
-            units: "pixels",
-            pageIndex: "1-based",
-          },
+    const payload = {
+      documentName: normalizedDocumentName,
+      metadata: {
+        coordinateSystem: {
+          origin: "top-left",
+          units: "pixels",
+          pageIndex: "1-based",
         },
-        variables: variables.map((field) => {
-          const config = getConfig(field);
-
-          return {
-            key: field.key,
-            type: field.type,
-            page: field.page,
-            x: field.x,
-            y: field.y,
-            width: field.width ?? 100,
-            height: field.height ?? 30,
-            label: field.label,
-            ...(config ? { config } : {}),
-            constraints: getConstraints(field),
-          };
-        }),
       },
-    ];
+      variables: variables.map((field) => {
+        const config = getConfig(field);
 
-    const jsonBlob = new Blob([JSON.stringify(payload, null, 2)], {
-      type: "application/json",
-    });
+        return {
+          key: field.key,
+          type: field.type,
+          page: field.page,
+          x: field.x,
+          y: field.y,
+          width: field.width ?? 100,
+          height: field.height ?? 30,
+          label: field.label,
+          ...(config ? { config } : {}),
+          constraints: getConstraints(field),
+        };
+      }),
+    };
 
-    const downloadUrl = URL.createObjectURL(jsonBlob);
-    const link = document.createElement("a");
-    const baseName = normalizedDocumentName.replace(/\.[^/.]+$/, "");
+    try {
+      const validationResult = FieldAttributesSchema.safeParse(payload);
 
-    link.href = downloadUrl;
-    link.download = `${baseName}-variables.json`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(downloadUrl);
+      if (!validationResult.success) {
+        setDownloadValidationStatus("error");
+        setDownloadValidationMessage("JSON validation failed. Please review field attributes and try again.");
+        return;
+      }
+
+      setDownloadValidationStatus("success");
+      setDownloadValidationMessage("JSON Validation successful, download will begin shortly.");
+
+      await new Promise((resolve) => window.setTimeout(resolve, 700));
+
+      const jsonBlob = new Blob([JSON.stringify(payload, null, 2)], {
+        type: "application/json",
+      });
+
+      const downloadUrl = URL.createObjectURL(jsonBlob);
+      const link = document.createElement("a");
+      const baseName = normalizedDocumentName.replace(/\.[^/.]+$/, "");
+
+      link.href = downloadUrl;
+      link.download = `${baseName}-variables.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(downloadUrl);
+
+      setShowDownloadValidationModal(false);
+      setDownloadValidationMessage("");
+    } catch {
+      setDownloadValidationStatus("error");
+      setDownloadValidationMessage("JSON validation could not be completed. Please try again.");
+    }
   };
 
   const handleReset = async () => {
@@ -1161,6 +1231,119 @@ export function PDFContainer({ file, onLoadComplete, templateId, initialVariable
     }, 2000);
   };
 
+  const handleJsonFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setUploadJsonError("");
+
+    // Check extension
+    if (!file.name.endsWith(".json")) {
+      setUploadJsonError("File must be a .json file");
+      event.target.value = "";
+      return;
+    }
+
+    // Check file size (5MB limit)
+    const maxSize = 5 * 1024 * 1024;
+    if (file.size > maxSize) {
+      setUploadJsonError("File size must not exceed 5MB");
+      event.target.value = "";
+      return;
+    }
+
+    // Store the file and open confirmation modal
+    setPendingJsonFile(file);
+    setShowUploadJsonModal(true);
+    event.target.value = "";
+  };
+
+  const handleUploadJsonConfirm = async () => {
+    if (!pendingJsonFile) return;
+
+    try {
+      const text = await pendingJsonFile.text();
+      const json = JSON.parse(text);
+
+      // Validate against schema
+      const validationResult = FieldAttributesSchema.safeParse(json);
+      if (!validationResult.success) {
+        setUploadJsonError("Invalid JSON schema");
+        setShowUploadJsonModal(false);
+        setShowUploadJsonErrorModal(true);
+        return;
+      }
+
+      const parsedPayload = validationResult.data;
+      const payload = Array.isArray(parsedPayload) ? parsedPayload[0] : parsedPayload;
+
+      if (!payload || !payload.variables) {
+        setUploadJsonError("No valid fields found in JSON");
+        setShowUploadJsonModal(false);
+        setShowUploadJsonErrorModal(true);
+        return;
+      }
+
+      const fields = payload.variables;
+
+      // Check if all pages exist in the PDF
+      const maxPage = numPages || 1;
+      for (const field of fields) {
+        if (field.page < 1 || field.page > maxPage) {
+          setUploadJsonError(`Field references page ${field.page} but PDF has only ${maxPage} page(s)`);
+          setShowUploadJsonModal(false);
+          setShowUploadJsonErrorModal(true);
+          return;
+        }
+      }
+
+      // Convert FieldData to PdfVariable and load into editor
+      const newVariables: PdfVariable[] = fields.map((field: FieldData) => ({
+        id: `${Date.now()}-${Math.random()}`,
+        key: field.key,
+        label: field.label,
+        type: field.type,
+        page: field.page,
+        x: field.x,
+        y: field.y,
+        width: field.width ?? 100,
+        height: field.height ?? 30,
+        minLength: field.constraints?.minLength ?? undefined,
+        maxLength: field.constraints?.maxLength ?? undefined,
+        minValue: field.constraints?.minValue ?? undefined,
+        maxValue: field.constraints?.maxValue ?? undefined,
+        allowDecimal: field.constraints?.allowDecimal ?? undefined,
+        required: field.constraints?.required ?? undefined,
+        minDate: field.constraints?.minDate ?? undefined,
+        maxDate: field.constraints?.maxDate ?? undefined,
+        dropdownOptions: field.config?.options ?? undefined,
+        checkboxOptions: field.config?.options ?? undefined,
+      }));
+
+      // Replace all variables
+      setVariablesHistory({
+        past: [],
+        present: newVariables,
+        future: [],
+      });
+
+      // Sync to server
+      if (templateId) {
+        const storedVariables = newVariables.map((v) => convertToStoredVariable(v));
+        await updateTemplateVariablesAction(templateId, storedVariables);
+      }
+
+      setShowUploadJsonModal(false);
+      setPendingJsonFile(null);
+      setUploadJsonError("");
+    } catch (error) {
+      const errMsg = error instanceof Error ? error.message : "Failed to parse JSON";
+      setUploadJsonError(errMsg);
+      setShowUploadJsonModal(false);
+      setShowUploadJsonErrorModal(true);
+    }
+  };
+
   const currentPageVariables = useMemo(
     () => variables.filter((variable) => variable.page === pageNumber),
     [variables, pageNumber]
@@ -1174,9 +1357,9 @@ export function PDFContainer({ file, onLoadComplete, templateId, initialVariable
 
   return (
     <>
-    <div className="flex gap-4 w-full h-full">
+    <div className="flex h-full min-h-0 w-full gap-4">
       {/* Left panel: field controls — hidden on mobile */}
-      <div className="hidden md:flex flex-col h-full w-[30%] flex-shrink-0 rounded-md border border-slate-200 bg-white p-3">
+      <div className="pane-side-surface hidden md:flex flex-col h-full w-[30%] flex-shrink-0 rounded-md border border-slate-200 bg-white p-3">
         <h2 className="text-sm font-semibold text-slate-950">Fields</h2>
         <p className="mt-1 text-xs text-slate-950">Drag fields onto the PDF to place them.</p>
         <div className="mt-3 grid grid-cols-2 gap-2">
@@ -1235,12 +1418,26 @@ export function PDFContainer({ file, onLoadComplete, templateId, initialVariable
             <i className="fa-solid fa-circle-dot mr-2"></i>Radio
           </button>
         </div>
-        <p className="mt-3 text-xs text-slate-950">
+        <p className="mt-4 text-xs text-slate-950">
           Total variables: <span className="font-medium text-slate-900">{variables.length}</span>
         </p>
 
+        {/* Upload JSON Field Attributes */}
+        <div className="mt-6 border-t border-slate-200 pt-4">
+          <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Upload JSON Field Attributes</h3>
+          <label className="flex items-center justify-center rounded border border-dashed border-slate-300 px-3 py-2 cursor-pointer hover:bg-slate-50 transition-colors">
+            <input
+              type="file"
+              accept=".json"
+              onChange={handleJsonFileSelect}
+              className="hidden"
+            />
+            <span className="text-xs font-medium text-slate-700">Choose JSON File</span>
+          </label>
+        </div>
+
         {/* View Options */}
-        <div className="mt-4 border-t border-slate-200 pt-3">
+        <div className="mt-6 border-t border-slate-200 pt-4">
           <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">View Options</h3>
           <label className="flex cursor-pointer items-center gap-2 rounded px-1 py-1 hover:bg-slate-50">
             <input
@@ -1263,7 +1460,7 @@ export function PDFContainer({ file, onLoadComplete, templateId, initialVariable
         </div>
 
         {/* Actions */}
-        <div className="mt-4 border-t border-slate-200 pt-3">
+        <div className="mt-6 border-t border-slate-200 pt-4">
           <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Actions</h3>
           <div className="grid grid-cols-2 gap-2">
             <button
@@ -1279,14 +1476,14 @@ export function PDFContainer({ file, onLoadComplete, templateId, initialVariable
                 setIsApiUrlCopied(false);
                 setShowGetApiModal(true);
               }}
-              className="rounded bg-green-500 px-3 py-2 text-xs font-semibold text-white hover:bg-green-600 transition-colors"
+              className="rounded bg-emerald-500 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-600 transition-colors"
             >
               Get API
             </button>
             <button
               type="button"
               onClick={() => setShowResetConfirm(true)}
-              className="rounded bg-yellow-500 px-3 py-2 text-xs font-semibold text-white hover:bg-yellow-600 transition-colors"
+              className="rounded bg-amber-500 px-3 py-2 text-xs font-semibold text-white hover:bg-amber-600 transition-colors"
             >
               Reset
             </button>
@@ -1304,7 +1501,7 @@ export function PDFContainer({ file, onLoadComplete, templateId, initialVariable
       </div>
 
       {/* Middle: main PDF viewer + pagination — full width on mobile, 50% on desktop */}
-      <div className="flex flex-col flex-1 md:w-[55%] md:flex-none h-full min-w-0">
+      <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col md:w-[55%] md:flex-none">
         {/* Top bar: editable document name + actions */}
         <div className="flex-shrink-0 rounded-md border border-slate-300 bg-white p-2">
           <div className="flex items-center gap-2">
@@ -1321,66 +1518,26 @@ export function PDFContainer({ file, onLoadComplete, templateId, initialVariable
                 type="button"
                 onClick={handleUndo}
                 disabled={!canUndo}
+                title="Undo"
+                aria-label="Undo"
                 className="rounded border border-slate-300 px-3 py-1 text-sm text-slate-900 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                Undo
+                <span className={isDarkMode ? "text-white" : "text-blue-600"}>
+                  <i className="fa-solid fa-rotate-left" />
+                </span>
               </button>
               <button
                 type="button"
                 onClick={handleRedo}
                 disabled={!canRedo}
+                title="Redo"
+                aria-label="Redo"
                 className="rounded border border-slate-300 px-3 py-1 text-sm text-slate-900 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                Redo
+                <span className={isDarkMode ? "text-white" : "text-blue-600"}>
+                  <i className="fa-solid fa-rotate-right" />
+                </span>
               </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Pagination controls — top section */}
-        <div className="mt-2 flex-shrink-0 rounded-md border border-slate-300 bg-white p-2">
-          <div className="flex items-center gap-2">
-            <div className="flex flex-1 items-center justify-center gap-4">
-            <button
-              type="button"
-              className="rounded border border-slate-300 px-3 py-1 text-sm text-black disabled:cursor-not-allowed disabled:opacity-50"
-              onClick={() => canZoomOut && setZoomScale((z) => Math.max(0.6, Number((z - 0.1).toFixed(1))))}
-              disabled={!canZoomOut}
-            >
-              −
-            </button>
-            <span className="min-w-14 text-center text-sm text-slate-900">
-              {Math.round(zoomScale * 100)}%
-            </span>
-            <button
-              type="button"
-              className="rounded border border-slate-300 px-3 py-1 text-sm text-black disabled:cursor-not-allowed disabled:opacity-50"
-              onClick={() => canZoomIn && setZoomScale((z) => Math.min(2, Number((z + 0.1).toFixed(1))))}
-              disabled={!canZoomIn}
-            >
-              +
-            </button>
-
-            <button
-              type="button"
-              className="rounded border border-slate-300 px-3 py-1 text-sm text-black disabled:cursor-not-allowed disabled:opacity-50"
-              onClick={() => canGoPrev && setPageNumber((p) => p - 1)}
-              disabled={!canGoPrev}
-            >
-              ← Previous
-            </button>
-            <span className="text-sm text-slate-900">
-              Page {pageNumber}
-              {numPages ? ` of ${numPages}` : ""}
-            </span>
-            <button
-              type="button"
-              className="rounded border border-slate-300 px-3 py-1 text-sm text-black disabled:cursor-not-allowed disabled:opacity-50"
-              onClick={() => canGoNext && setPageNumber((p) => p + 1)}
-              disabled={!canGoNext}
-            >
-              Next →
-            </button>
             </div>
           </div>
         </div>
@@ -1480,10 +1637,92 @@ export function PDFContainer({ file, onLoadComplete, templateId, initialVariable
           </div>
         )}
 
+        {showDownloadValidationModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+            <div className="w-full max-w-sm rounded-xl border border-slate-200 bg-white p-6 shadow-lg">
+              <h3 className="mb-3 text-base font-semibold text-black">Download JSON</h3>
+              {downloadValidationStatus === "progress" && (
+                <div className="mb-4 flex items-center justify-center">
+                  <span className="h-6 w-6 animate-spin rounded-full border-2 border-slate-300 border-t-blue-500" aria-hidden="true" />
+                </div>
+              )}
+              <p className="mb-6 text-sm text-slate-900">{downloadValidationMessage}</p>
+              {downloadValidationStatus === "error" && (
+                <div className="flex justify-end">
+                  <button
+                    onClick={() => {
+                      setShowDownloadValidationModal(false);
+                      setDownloadValidationMessage("");
+                    }}
+                    className="rounded border border-slate-300 px-4 py-2 text-sm text-black hover:bg-slate-50"
+                  >
+                    Okay
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {showUploadJsonModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+            <div className="w-full max-w-sm rounded-xl border border-slate-200 bg-white p-6 shadow-lg">
+              <h3 className="mb-3 text-base font-semibold text-black">Upload JSON Field Attributes?</h3>
+              <p className="mb-2 text-sm text-slate-900">
+                <span className="font-semibold">Warning:</span> Uploading a JSON file will remove all existing field configurations and replace them with the ones from the file.
+              </p>
+              <p className="mb-6 text-xs text-slate-700">
+                It is recommended to download your current configuration before uploading a new one.
+              </p>
+              <div className="flex justify-end gap-3">
+                <button
+                  onClick={() => {
+                    setShowUploadJsonModal(false);
+                    setPendingJsonFile(null);
+                    setUploadJsonError("");
+                  }}
+                  className="rounded border border-slate-300 px-4 py-2 text-sm text-black hover:bg-slate-50"
+                >
+                  Okay
+                </button>
+                <button
+                  onClick={handleUploadJsonConfirm}
+                  className="rounded bg-blue-500 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-600"
+                >
+                  Continue
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {showUploadJsonErrorModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+            <div className="w-full max-w-sm rounded-xl border border-slate-200 bg-white p-6 shadow-lg">
+              <h3 className="mb-3 text-base font-semibold text-black">Validation Error</h3>
+              <p className="mb-6 text-sm text-slate-900">
+                {uploadJsonError}
+              </p>
+              <div className="flex justify-end">
+                <button
+                  onClick={() => {
+                    setShowUploadJsonErrorModal(false);
+                    setPendingJsonFile(null);
+                    setUploadJsonError("");
+                  }}
+                  className="rounded border border-slate-300 px-4 py-2 text-sm text-black hover:bg-slate-50"
+                >
+                  Okay
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Scrollable main page area */}
         <div
           ref={pdfContainerRef}
-          className="mt-3 flex-1 overflow-auto rounded-md border border-slate-300 bg-slate-100 p-2"
+          className="pdf-viewer-area mt-3 min-h-0 flex-1 overflow-auto rounded-md border border-slate-300 p-2"
           onDragOver={handleDragOver}
           onDrop={handleDrop}
         >
@@ -1543,46 +1782,116 @@ export function PDFContainer({ file, onLoadComplete, templateId, initialVariable
             </Document>
           </div>
         </div>
+
+        {/* Pagination controls — bottom section */}
+        <div className="mt-2 flex-shrink-0 rounded-md border border-slate-300 bg-white p-2">
+          <div className="flex items-center gap-2">
+            <div className="flex flex-1 items-center justify-center gap-4">
+            <button
+              type="button"
+              className="rounded border border-slate-300 px-3 py-1 text-sm text-black disabled:cursor-not-allowed disabled:opacity-50"
+              onClick={() => canZoomOut && setZoomScale((z) => Math.max(0.6, Number((z - 0.1).toFixed(1))))}
+              disabled={!canZoomOut}
+            >
+              −
+            </button>
+            <span className="min-w-14 text-center text-sm text-slate-900">
+              {Math.round(zoomScale * 100)}%
+            </span>
+            <button
+              type="button"
+              className="rounded border border-slate-300 px-3 py-1 text-sm text-black disabled:cursor-not-allowed disabled:opacity-50"
+              onClick={() => canZoomIn && setZoomScale((z) => Math.min(2, Number((z + 0.1).toFixed(1))))}
+              disabled={!canZoomIn}
+            >
+              +
+            </button>
+
+            <button
+              type="button"
+              className="rounded border border-slate-300 px-3 py-1 text-sm text-black disabled:cursor-not-allowed disabled:opacity-50"
+              onClick={() => canGoPrev && setPageNumber((p) => p - 1)}
+              disabled={!canGoPrev}
+            >
+              ← Previous
+            </button>
+            <div className="flex items-center gap-2 text-sm text-slate-900">
+              <span>Page</span>
+              <input
+                type="text"
+                inputMode="numeric"
+                value={pageInputValue}
+                onChange={(event) => {
+                  const digitsOnly = event.target.value.replace(/\D/g, "");
+                  setPageInputValue(digitsOnly);
+                }}
+                onBlur={applyPageInput}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    applyPageInput();
+                    event.currentTarget.blur();
+                  }
+                }}
+                disabled={!numPages}
+                className="w-14 rounded border border-slate-300 px-2 py-1 text-center text-sm text-black focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
+                aria-label="Page number"
+              />
+              <span>{numPages ? `of ${numPages}` : "of -"}</span>
+            </div>
+            <button
+              type="button"
+              className="rounded border border-slate-300 px-3 py-1 text-sm text-black disabled:cursor-not-allowed disabled:opacity-50"
+              onClick={() => canGoNext && setPageNumber((p) => p + 1)}
+              disabled={!canGoNext}
+            >
+              Next →
+            </button>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Right: scrollable thumbnail sidebar — 20%, hidden on mobile */}
       {numPages && (
-        <div className="hidden md:flex flex-col h-full w-[20%] flex-shrink-0 rounded-md border border-slate-200 bg-white p-3">
-          <div className="h-full overflow-y-auto pr-2">
-            <Document
-              file={fileObject}
-              loading={null}
-              className="w-full"
-            >
-              {Array.from({ length: numPages }, (_, i) => {
-                const pg = i + 1;
-                const isActive = pg === pageNumber;
-                return (
-                  <div key={pg} className="mb-3 w-full flex justify-center -translate-x-8">
-                    <div
-                      onClick={() => setPageNumber(pg)}
-                      className={`w-fit cursor-pointer rounded border-2 transition ${
-                        isActive
-                          ? "border-blue-500"
-                          : "border-transparent hover:border-slate-300"
-                      }`}
-                    >
-                      <Page
-                        pageNumber={pg}
-                        width={112}
-                        renderAnnotationLayer={false}
-                        renderTextLayer={false}
-                      />
-                      <p className={`text-center text-xs py-0.5 ${
-                        isActive ? "text-blue-600 font-semibold" : "text-slate-950"
-                      }`}>
-                        {pg}
-                      </p>
+        <div className="pane-side-surface hidden md:flex flex-col h-full w-[20%] flex-shrink-0 rounded-md border border-slate-200 bg-white p-3">
+          <div ref={thumbnailContainerRef} className="thumbnail-scrollbar thumbnail-scrollbar-left h-full overflow-y-scroll overflow-x-hidden pl-1">
+            <div className="thumbnail-scrollbar-content w-full">
+              <Document
+                file={fileObject}
+                loading={null}
+                className="ml-0 mr-auto w-fit translate-x-[15px]"
+              >
+                {Array.from({ length: numPages }, (_, i) => {
+                  const pg = i + 1;
+                  const isActive = pg === pageNumber;
+                  return (
+                    <div key={pg} className="mb-3 flex w-full justify-center">
+                      <div
+                        data-thumbnail-page={pg}
+                        onClick={() => setPageNumber(pg)}
+                        className={`w-fit cursor-pointer rounded border-2 transition ${
+                          isActive
+                            ? "border-blue-500"
+                            : "border-slate-400 hover:border-slate-500"
+                        }`}
+                      >
+                        <Page
+                          pageNumber={pg}
+                          width={112}
+                          renderAnnotationLayer={false}
+                          renderTextLayer={false}
+                        />
+                        <p className={`text-center text-xs py-0.5 ${
+                          isActive ? "text-blue-600 font-semibold" : "text-slate-950"
+                        }`}>
+                          {pg}
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
-            </Document>
+                  );
+                })}
+              </Document>
+            </div>
           </div>
         </div>
       )}

@@ -15,6 +15,7 @@ The application runs as a Next.js web app with an in-memory template store. When
 - **PDF Upload** — Accepts PDF files via drag-and-drop or file picker, validates type and size before loading.
 - **PDF Rendering** — Renders individual pages with zoom controls and page navigation. Thumbnails panel on the right allows quick page jumping.
 - **Variable Placement** — Drag named fields from a sidebar onto any page. Fields are positioned using a coordinate overlay that maps pixel positions back to PDF-relative percentages.
+- **Metadata Model** — Exported templates include coordinate metadata (`origin: top-left`, `units: pixels`, `pageIndex: 1-based`) so field positions are interpreted consistently across API consumers.
 - **Field Editing and Deleting** — Click any placed field to edit its name, type, and attributes inline. Delete individual fields or clear all fields on a page.
 - **Undo / Redo** — Full history of placement and edit actions with a 50-event cap. Keyboard shortcuts `Ctrl+Z` / `Ctrl+Y` supported.
 - **JSON Export** — Download the complete variable mapping as a structured JSON object. Pre-download validation ensures only well-formed data is exported.

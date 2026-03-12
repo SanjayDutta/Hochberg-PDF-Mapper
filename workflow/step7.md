@@ -31,3 +31,7 @@
 - [x] For the Get Api button- So when we click Download, a json file download gets initiated. Now when user click Get Api button, a pop up opens - which show a url link which looks like {GET http://{url of application}/{uid}/getJson} and underneath it a information section which says - "1. Copy the above URL and paste it browser or use API clients to fetch the JSON payload" At the bottom of the pop up we have Okay button
 
 - [x] Make a route GET http://{url of application}/{uid}/getJson which will return the json content, which we provide the json file when downloading. Here we are sending back the contents of the download file as a response
+
+- [x] I want to add dark mode, already we have buttons in place to do the switching (in Recent Works tab). Upon clicking them, i want to have dark mode in the application. Colors for different background can be rgb(61,61,61), rgb(33,33,33) and rgb(24,24,24). Font color should be white
+
+

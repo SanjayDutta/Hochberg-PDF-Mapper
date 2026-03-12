@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import { useTheme } from "@/components/ThemeProvider";
 
 type TemplateCardItem = {
   id: string;
@@ -15,7 +16,7 @@ type TemplateNavBarProps = {
 
 export function TemplateNavBar({ templates }: TemplateNavBarProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [isDarkMode, setIsDarkMode] = useState(false);
+  const { isDarkMode, toggleTheme } = useTheme();
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -49,10 +50,10 @@ export function TemplateNavBar({ templates }: TemplateNavBarProps) {
             <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-900">Recent Work</h2>
             <button
               type="button"
-              onClick={() => setIsDarkMode((previous) => !previous)}
+              onClick={toggleTheme}
               className="rounded border border-slate-300 px-3 py-1 text-xs text-black hover:bg-slate-50"
             >
-              {isDarkMode ? "Dark Mode" : "Light Mode"}
+              {isDarkMode ? "Light Mode" : "Dark Mode"}
             </button>
           </div>
 

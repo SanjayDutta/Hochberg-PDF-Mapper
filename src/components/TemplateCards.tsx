@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { deleteTemplateAction } from "@/lib/templateActions";
+import { useTheme } from "@/components/ThemeProvider";
 
 type TemplateCardItem = {
   id: string;
@@ -14,7 +15,7 @@ export function TemplateCards({ templates: initialTemplates }: { templates: Temp
   const [templates, setTemplates] = useState(initialTemplates);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [isDarkMode, setIsDarkMode] = useState(false);
+  const { isDarkMode, toggleTheme } = useTheme();
 
   const handleDeleteConfirm = async () => {
     if (!confirmDeleteId) return;
@@ -35,7 +36,7 @@ export function TemplateCards({ templates: initialTemplates }: { templates: Temp
             Recent Work
           </h2>
           <button
-            onClick={() => setIsDarkMode((v) => !v)}
+            onClick={toggleTheme}
             className="flex items-center gap-1.5 rounded border border-slate-300 px-3 py-1 text-xs font-medium text-slate-700 hover:bg-slate-100 transition-colors"
             title="Toggle Light/Dark Mode"
           >

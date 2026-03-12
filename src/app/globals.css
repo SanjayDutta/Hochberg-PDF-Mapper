@@ -12,15 +12,132 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+html[data-theme="dark"],
+html.dark-mode,
+body.dark-mode {
+  --background: rgb(24, 24, 24);
+  --foreground: #ffffff;
+}
+
+html[data-theme="dark"] body,
+html.dark-mode body,
+body.dark-mode {
+  background: rgb(24, 24, 24);
+  color: #ffffff;
+}
+
+html[data-theme="dark"] .bg-white,
+html.dark-mode .bg-white,
+body.dark-mode .bg-white {
+  background-color: rgb(33, 33, 33) !important;
+}
+
+html[data-theme="dark"] .bg-slate-50,
+html[data-theme="dark"] .bg-slate-100,
+html.dark-mode .bg-slate-50,
+html.dark-mode .bg-slate-100,
+body.dark-mode .bg-slate-50,
+body.dark-mode .bg-slate-100 {
+  background-color: rgb(61, 61, 61) !important;
+}
+
+html[data-theme="dark"] .border-slate-200,
+html[data-theme="dark"] .border-slate-300,
+html[data-theme="dark"] .border-slate-400,
+html.dark-mode .border-slate-200,
+html.dark-mode .border-slate-300,
+html.dark-mode .border-slate-400,
+body.dark-mode .border-slate-200,
+body.dark-mode .border-slate-300,
+body.dark-mode .border-slate-400 {
+  border-color: rgb(61, 61, 61) !important;
+}
+
+html[data-theme="dark"] .text-black,
+html[data-theme="dark"] .text-slate-950,
+html[data-theme="dark"] .text-slate-900,
+html[data-theme="dark"] .text-slate-800,
+html[data-theme="dark"] .text-slate-700,
+html[data-theme="dark"] .text-slate-600,
+html.dark-mode .text-black,
+html.dark-mode .text-slate-950,
+html.dark-mode .text-slate-900,
+html.dark-mode .text-slate-800,
+html.dark-mode .text-slate-700,
+html.dark-mode .text-slate-600,
+body.dark-mode .text-black,
+body.dark-mode .text-slate-950,
+body.dark-mode .text-slate-900,
+body.dark-mode .text-slate-800,
+body.dark-mode .text-slate-700,
+body.dark-mode .text-slate-600 {
+  color: #ffffff !important;
+}
+
+html[data-theme="dark"] .text-slate-500,
+html.dark-mode .text-slate-500,
+body.dark-mode .text-slate-500 {
+  color: #d1d5db !important;
+}
+
+html[data-theme="dark"] input,
+html[data-theme="dark"] textarea,
+html[data-theme="dark"] select,
+html.dark-mode input,
+html.dark-mode textarea,
+html.dark-mode select,
+body.dark-mode input,
+body.dark-mode textarea,
+body.dark-mode select {
+  background-color: rgb(33, 33, 33) !important;
+  color: #ffffff !important;
+  border-color: rgb(61, 61, 61) !important;
+}
+
+html[data-theme="dark"] .shadow-sm,
+html[data-theme="dark"] .shadow-lg,
+html.dark-mode .shadow-sm,
+html.dark-mode .shadow-lg,
+body.dark-mode .shadow-sm,
+body.dark-mode .shadow-lg {
+  box-shadow: none !important;
+}
+
+html[data-theme="dark"] .hover\:bg-slate-50:hover,
+html[data-theme="dark"] .hover\:bg-slate-100:hover,
+html.dark-mode .hover\:bg-slate-50:hover,
+html.dark-mode .hover\:bg-slate-100:hover,
+body.dark-mode .hover\:bg-slate-50:hover,
+body.dark-mode .hover\:bg-slate-100:hover {
+  background-color: rgb(61, 61, 61) !important;
+}
+
+html[data-theme="dark"] .hover\:border-slate-400:hover,
+html.dark-mode .hover\:border-slate-400:hover,
+body.dark-mode .hover\:border-slate-400:hover {
+  border-color: #9ca3af !important;
+}
+
+html[data-theme="dark"] .focus\:ring-blue-500:focus,
+html.dark-mode .focus\:ring-blue-500:focus,
+body.dark-mode .focus\:ring-blue-500:focus {
+  --tw-ring-color: rgb(96 165 250 / 0.75) !important;
+}
+
+html[data-theme="dark"] .focus\:border-blue-500:focus,
+html.dark-mode .focus\:border-blue-500:focus,
+body.dark-mode .focus\:border-blue-500:focus {
+  border-color: rgb(96 165 250) !important;
+}
+
+html[data-theme="dark"] .hover\:bg-red-50:hover,
+html.dark-mode .hover\:bg-red-50:hover,
+body.dark-mode .hover\:bg-red-50:hover {
+  background-color: rgba(239, 68, 68, 0.18) !important;
 }

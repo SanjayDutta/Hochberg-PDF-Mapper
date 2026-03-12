@@ -93,6 +93,17 @@ export const updateTemplateVariables = (
   return template;
 };
 
+export const updateTemplateDocumentName = (
+  id: string,
+  documentName: string
+): StoredTemplate | undefined => {
+  const template = templateStore.get(id);
+  if (!template) return undefined;
+
+  template.documentName = documentName;
+  return template;
+};
+
 export const deleteTemplate = (id: string): boolean => {
   return templateStore.delete(id);
 };

@@ -1,16 +1,28 @@
-FROM node:20-alpine
+FROM node:20-alpine AS base
 
 WORKDIR /app
+ENV NEXT_TELEMETRY_DISABLED=1
 
-# Install dependencies first (leverages Docker layer caching)
+FROM base AS deps
 COPY package*.json ./
 RUN npm install
 
-# Copy the rest of the application code
+FROM base AS builder
+COPY --from=deps /app/node_modules ./node_modules
 COPY . .
+RUN npm run build
 
-EXPOSE 3000
+FROM base AS runner
+ENV NODE_ENV=production
 ENV PORT=3000
 
-# Start the Next.js development server
-CMD ["npm", "run", "dev"]
+COPY package*.json ./
+COPY --from=deps /app/node_modules ./node_modules
+
+COPY --from=builder /app/.next ./.next
+COPY --from=builder /app/public ./public
+COPY --from=builder /app/next.config.ts ./next.config.ts
+
+EXPOSE 3000
+
+CMD ["npm", "run", "start"]

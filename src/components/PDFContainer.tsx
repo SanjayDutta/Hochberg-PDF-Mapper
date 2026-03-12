@@ -1,10 +1,14 @@
 "use client";
 
-import { useEffect, useMemo, useState, useRef } from "react";
+import { useEffect, useMemo, useState, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import "react-pdf/dist/Page/AnnotationLayer.css";
 import "react-pdf/dist/Page/TextLayer.css";
-import { updateTemplateVariablesAction, deleteTemplateAction } from "@/lib/templateActions";
+import {
+  updateTemplateVariablesAction,
+  updateTemplateDocumentNameAction,
+  deleteTemplateAction,
+} from "@/lib/templateActions";
 import { FieldAttributesSchema, type FieldData } from "@/lib/fieldSchema";
 import { useTheme } from "@/components/ThemeProvider";
 
@@ -155,6 +159,7 @@ export function PDFContainer({ file, onLoadComplete, templateId, initialVariable
   const pdfContainerRef = useRef<HTMLDivElement>(null);
   const pdfPageRef = useRef<HTMLDivElement>(null);
   const thumbnailContainerRef = useRef<HTMLDivElement>(null);
+  const lastSyncedDocumentNameRef = useRef(file.name.trim() || file.name);
   const hasDraggedRef = useRef(false);
   const hasResizedRef = useRef(false);
   const dragStartVariablesRef = useRef<PdfVariable[] | null>(null);
@@ -169,7 +174,38 @@ export function PDFContainer({ file, onLoadComplete, templateId, initialVariable
 
   useEffect(() => {
     setDocumentName(file.name);
+    lastSyncedDocumentNameRef.current = file.name.trim() || file.name;
   }, [file]);
+
+  const persistDocumentName = useCallback(
+    async (value: string) => {
+      if (!templateId) return;
+
+      const nextName = value.trim() || file.name;
+
+      if (nextName === lastSyncedDocumentNameRef.current) {
+        return;
+      }
+
+      const updatedTemplate = await updateTemplateDocumentNameAction(templateId, nextName);
+      if (updatedTemplate) {
+        lastSyncedDocumentNameRef.current = nextName;
+      }
+    },
+    [file.name, templateId]
+  );
+
+  useEffect(() => {
+    if (!templateId) return;
+
+    const timer = window.setTimeout(() => {
+      void persistDocumentName(documentName);
+    }, 400);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [documentName, persistDocumentName, templateId]);
 
   useEffect(() => {
     let mounted = true;
@@ -1436,6 +1472,11 @@ export function PDFContainer({ file, onLoadComplete, templateId, initialVariable
               type="text"
               value={documentName}
               onChange={(event) => setDocumentName(event.target.value)}
+              onBlur={(event) => {
+                const nextName = event.target.value.trim() || file.name;
+                setDocumentName(nextName);
+                void persistDocumentName(nextName);
+              }}
               className="w-full rounded border border-slate-300 px-3 py-1 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="Document name"
               aria-label="Document name"

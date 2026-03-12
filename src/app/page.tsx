@@ -3,8 +3,11 @@ import { TemplateCards } from "@/components/TemplateCards";
 import { UploadPdf } from "@/components/UploadPdf";
 import { RootNavBar } from "@/components/RootNavBar";
 import { FeatureCardsCarousel } from "@/components/FeatureCardsCarousel";
+import { unstable_noStore as noStore } from "next/cache";
 
 export default function Home() {
+  noStore();
+
   const templates = getAllTemplates().map((t) => ({
     id: t.id,
     documentName: t.documentName,

@@ -1,6 +1,12 @@
 "use server";
 
-import { createTemplate, updateTemplateVariables, deleteTemplate, type StoredVariable } from "./templateStore";
+import {
+  createTemplate,
+  updateTemplateVariables,
+  updateTemplateDocumentName,
+  deleteTemplate,
+  type StoredVariable,
+} from "./templateStore";
 
 export async function createTemplateAction(
   uuid: string,
@@ -15,6 +21,13 @@ export async function updateTemplateVariablesAction(
   variables: StoredVariable[]
 ) {
   return updateTemplateVariables(uuid, variables);
+}
+
+export async function updateTemplateDocumentNameAction(
+  uuid: string,
+  documentName: string
+) {
+  return updateTemplateDocumentName(uuid, documentName);
 }
 
 export async function deleteTemplateAction(uuid: string) {

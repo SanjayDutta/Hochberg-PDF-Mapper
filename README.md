@@ -10,6 +10,14 @@ The application runs as a Next.js web app with an in-memory template store. When
 
 ---
 
+## Demo
+
+A demo online version is running at **[https://pdfmapper-hwb5bwbfb2bhbqbb.germanywestcentral-01.azurewebsites.net](https://pdfmapper-hwb5bwbfb2bhbqbb.germanywestcentral-01.azurewebsites.net)**
+
+You can checkout the application here.
+
+---
+
 ## Features
 
 - **PDF Upload** — Accepts PDF files via drag-and-drop or file picker, validates type and size before loading.

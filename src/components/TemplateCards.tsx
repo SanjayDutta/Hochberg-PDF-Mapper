@@ -36,7 +36,7 @@ export function TemplateCards({ templates: initialTemplates }: { templates: Temp
         </div>
         {templates.length === 0 ? (
           <p className="text-sm text-slate-500">
-            No templates yet. Upload a PDF below to get started.
+            No templates yet. Upload a PDF below to get started. Your work gets saved automatically.
           </p>
         ) : (
           <div className="mt-2 flex flex-row gap-3 overflow-x-auto pb-1 pt-1">

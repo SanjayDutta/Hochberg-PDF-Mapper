@@ -854,7 +854,6 @@ export function PDFContainer({ file, onLoadComplete, templateId, initialVariable
       popupFieldType === "text" || popupFieldType === "number" || popupFieldType === "date"
         ? popupRequired
         : undefined;
-    let savedVariable: PdfVariable | null = null;
 
     if (!normalizedKey) {
       setPopupKeyError("Key is required.");
@@ -929,46 +928,6 @@ export function PDFContainer({ file, onLoadComplete, templateId, initialVariable
     setPopupKeyError("");
 
     if (editingVariableId) {
-      const existingVariable = variables.find((variable) => variable.id === editingVariableId);
-      savedVariable = existingVariable
-        ? {
-            ...existingVariable,
-            key: normalizedKey,
-            label: normalizedLabel,
-            type: popupFieldType,
-            minLength: popupFieldType === "text" ? normalizedMinLength : undefined,
-            maxLength: popupFieldType === "text" ? normalizedMaxLength : undefined,
-            minValue: popupFieldType === "number" ? normalizedMinValue : undefined,
-            maxValue: popupFieldType === "number" ? normalizedMaxValue : undefined,
-            minDate: popupFieldType === "date" ? normalizedMinDate : undefined,
-            maxDate: popupFieldType === "date" ? normalizedMaxDate : undefined,
-            allowDecimal: popupFieldType === "number" ? normalizedAllowDecimal : undefined,
-            dropdownOptions: popupFieldType === "dropdown" ? normalizedDropdownOptions : undefined,
-            checkboxOptions: popupFieldType === "checkbox" ? normalizedCheckboxOptions : undefined,
-            required: normalizedRequired,
-          }
-        : {
-            id: editingVariableId,
-            key: normalizedKey,
-            label: normalizedLabel,
-            type: popupFieldType,
-            page: popupDropPage,
-            x: popupDropX,
-            y: popupDropY,
-            width: 100,
-            height: 30,
-            minLength: popupFieldType === "text" ? normalizedMinLength : undefined,
-            maxLength: popupFieldType === "text" ? normalizedMaxLength : undefined,
-            minValue: popupFieldType === "number" ? normalizedMinValue : undefined,
-            maxValue: popupFieldType === "number" ? normalizedMaxValue : undefined,
-            minDate: popupFieldType === "date" ? normalizedMinDate : undefined,
-            maxDate: popupFieldType === "date" ? normalizedMaxDate : undefined,
-            allowDecimal: popupFieldType === "number" ? normalizedAllowDecimal : undefined,
-            dropdownOptions: popupFieldType === "dropdown" ? normalizedDropdownOptions : undefined,
-            checkboxOptions: popupFieldType === "checkbox" ? normalizedCheckboxOptions : undefined,
-            required: normalizedRequired,
-          };
-
       updateVariables((prev) =>
         prev.map((variable) =>
           variable.id === editingVariableId
@@ -1014,8 +973,6 @@ export function PDFContainer({ file, onLoadComplete, templateId, initialVariable
         required: normalizedRequired,
       };
 
-      savedVariable = newVariable;
-
       updateVariables((prev) => {
         return [
           ...prev,
@@ -1040,36 +997,6 @@ export function PDFContainer({ file, onLoadComplete, templateId, initialVariable
     setPopupCheckboxOptions([]);
     setPopupRequired(false);
     setPopupKeyError("");
-
-    if (savedVariable) {
-      alert(
-        `Variable attributes:\n${JSON.stringify(
-          {
-            id: savedVariable.id,
-            key: savedVariable.key,
-            label: savedVariable.label,
-            type: savedVariable.type,
-            page: savedVariable.page,
-            x: savedVariable.x,
-            y: savedVariable.y,
-            width: savedVariable.width,
-            height: savedVariable.height,
-            minLength: savedVariable.minLength,
-            maxLength: savedVariable.maxLength,
-            minValue: savedVariable.minValue,
-            maxValue: savedVariable.maxValue,
-            minDate: savedVariable.minDate,
-            maxDate: savedVariable.maxDate,
-            allowDecimal: savedVariable.allowDecimal,
-            dropdownOptions: savedVariable.dropdownOptions,
-            checkboxOptions: savedVariable.checkboxOptions,
-            required: savedVariable.required,
-          },
-          null,
-          2
-        )}`
-      );
-    }
   };
 
   const handleCancelPopup = () => {
@@ -1468,7 +1395,7 @@ export function PDFContainer({ file, onLoadComplete, templateId, initialVariable
               onClick={handleDownloadVariables}
               className="rounded bg-blue-500 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-600 transition-colors"
             >
-              Download
+              Export JSON
             </button>
             <button
               type="button"
@@ -1612,7 +1539,9 @@ export function PDFContainer({ file, onLoadComplete, templateId, initialVariable
                 />
                 <button
                   onClick={copyUrlToClipboard}
-                  className="rounded bg-blue-500 px-3 py-2 text-xs font-medium text-white hover:bg-blue-600 transition-colors"
+                  className={`rounded px-3 py-2 text-xs font-medium text-white transition-colors ${
+                    isApiUrlCopied ? "bg-green-500 hover:bg-green-600" : "bg-blue-500 hover:bg-blue-600"
+                  }`}
                 >
                   {isApiUrlCopied ? "Copied to Clipboard" : "Copy to Clipboard"}
                 </button>

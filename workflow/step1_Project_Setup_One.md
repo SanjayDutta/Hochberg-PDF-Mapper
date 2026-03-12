@@ -1,4 +1,4 @@
-## Step 1 : Bare-bones Project Setup
+## Step 1 : Bare-bones Project Setup - 1st part
 
 **1.Aim:** We are going to setup a very simple, bare bone structure of the project. This will start with the project setup and checking if the project can be accessed via the web browser.
 
